@@ -1,0 +1,8 @@
+{
+  "name": "query-bit",
+  "version": "0.0.1",
+  "description": "a prolog like query system in javascript, can query a bit",
+  "main": "node",
+  "author": "operali",
+  "license": "MIT"
+}
