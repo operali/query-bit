@@ -6,6 +6,12 @@ const delay = async (ns: number) => {
   })
 }
 
+const noImpl = ()=>{
+  throw "no implement"
+}
+
+
 export {
-  delay
+  delay,
+  noImpl
 }
