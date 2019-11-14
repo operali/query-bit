@@ -1,6 +1,6 @@
 import { Iterable, Iterator, Stepable, Stepper, option_t } from '../src/iter';
 
-let nubmerIter = class extends Iterable {
+let nubmerable = class extends Iterable {
     getIter() {
         let iter = class extends Iterator {
             _cur: number
@@ -19,7 +19,7 @@ let nubmerIter = class extends Iterable {
 }
 
 test('nubmerIter', () => {
-    let n = new nubmerIter();
+    let n = new nubmerable();
     let ni = n.getIter();
     for (let i = 0; i < 100; ++i) {
         expect(ni.next()).toEqual([i]);
@@ -46,13 +46,69 @@ let filterIter = (itab: Iterable, filter: (any) => boolean) => new class extends
 }
 
 test('filterIter', () => {
-    let n = new nubmerIter();
+    let n = new nubmerable();
     let even = filterIter(n, v => v % 2 == 0);
     let it = even.getIter();
     for (let i = 0; i < 100; i = i + 2) {
         expect(it.next()).toEqual([i]);
     }
 })
+
+test('linq func', () => {
+    let n = new nubmerable();
+    {
+        let n1 = n.elim();
+        expect(n1[0]).toEqual(0);
+        expect(n1[1].nth(0)).toEqual([1]);
+        expect(n1[1].nth(0)).toEqual([2]);
+    }
+    {
+        let n1 = n.take(5);
+        let r = n1.elim();
+        expect(r[0]).toEqual(0);
+        expect(r[1].toArray()).toEqual([1, 2, 3, 4]);
+    }
+    {
+        let n1 = n.take(0);
+        let r = n1.elim();
+        expect(r).toEqual(null);
+    }
+    {
+        let sum = n.take(5).fold(0, (a, i) => a + i);
+        expect(sum).toEqual(10);
+    }
+    {
+        let n1 = n.take(5)
+        expect(n1.length()).toEqual(5);
+    }
+    {
+        let n1 = n.map(i => i * 2);
+        let it = n1.getIter();
+        expect(it.next()).toEqual([0]);
+        expect(it.next()).toEqual([2]);
+        expect(it.next()).toEqual([4]);
+    }
+    {
+        let n1 = n.filter(n => n % 3 == 0)
+        let it = n1.getIter();
+        expect(it.next()).toEqual([0]);
+        expect(it.next()).toEqual([3]);
+        expect(it.next()).toEqual([6]);
+    }
+    {
+        let n1 = n.nth(100);
+        expect(n1).toEqual([100]);
+    }
+    {
+        let n1 = n.skip(5);
+        let it = n1.getIter();
+        expect(it.next()).toEqual([5]);
+    }
+    {
+        let n1 = n.take(5).toArray();
+        expect(n1).toEqual([0, 1, 2, 3, 4]);
+    }
+});
 
 interface table_t {
     [idx: number]: (table_t | number)
@@ -91,12 +147,14 @@ class tableStepper extends Stepper {
 
 test('tableIter', () => {
     {
-        let tab: table_t = [3, 4, [5, 6], [7, [8]]];
+        let tab: table_t = [3, 4, [5, 6], [7, [8, [9, 10, 11]]]];
         let tabStab = new tableStepable(tab);
         let tabSter = tabStab.getStep();
         let iter = tabSter.toIterator();
-        for (let i = 3; i < 9; ++i) {
+        for (let i = 3; i < 12; ++i) {
             expect(iter.next()).toEqual([i]);
         }
     }
 });
+
+
