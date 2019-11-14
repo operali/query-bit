@@ -174,3 +174,23 @@ test('tableIter', () => {
 });
 
 
+test('fromEnum', () => {
+    {
+        let tab: option_t[] = [[1], [2], [3], [4]];
+        let st = Stepper.fromEnum(tab);
+        let it = st.toIterable().getIter();
+        expect(it.toArray()).toEqual([[0, 1], [1, 2], [2, 3], [3, 4]]);
+    }
+
+    {
+        let itab = new class extends Iterable {
+            getIter() {
+                return Iterator.fromN(3);
+            }
+        }
+        let tab: Iterable[] = [itab];
+        let st = Stepper.fromEnum(tab);
+        let it = st.toIterable().getIter();
+        expect(it.take(3).toArray()).toEqual([[0, 3], [0, 4], [0, 5]]);
+    }
+});

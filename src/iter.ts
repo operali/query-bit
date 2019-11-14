@@ -23,6 +23,7 @@ export class Iterable {
         }
     }
 
+    // poor performance, care to use it, use iterator directly!
     uncons(): [any, Iterable] {
         let that = this;
         let r = that.getIter().uncons();
@@ -92,6 +93,39 @@ export class Iterable {
 }
 
 export class Iterator {
+    static gen(first: any, next: (pre: any) => option_t): Iterator {
+        let cur = first;
+        return new class extends Iterator {
+            next() {
+                let r = cur;
+                cur = next(cur);
+                return r;
+            }
+        }
+    }
+
+    static fromN(n: number): Iterator {
+        let cur = n;
+        return new class extends Iterator {
+            next(): [any] {
+                let r = cur++;
+                return [r];
+            }
+        }
+    }
+
+    static fromArray(ns: any[]): Iterator {
+        let i = 0;
+        return new class extends Iterator {
+            next(): option_t {
+                if (i == ns.length) {
+                    return null;
+                }
+                return [ns[i++]];
+            }
+        }
+    }
+
     next(): option_t {
         throw "no implement"
     }
@@ -222,6 +256,54 @@ export class Stepable {
 }
 
 export class Stepper {
+    static fromArray(items: (Stepable | Iterable | any)[]) {
+        
+    }
+    /** 
+     * (a, b) to ((0, a1)...(0, an)...(1, b1)...(1, bn));
+     */
+    static fromEnum(items: (Stepable | Iterable | any)[]) {
+        return new class extends Stepable {
+            getStep() {
+                return new class extends Stepper {
+                    _idx: number
+                    _curItem: Iterator;
+                    constructor() {
+                        super();
+                        this._idx = 0;
+                        this._curItem = null;
+                    }
+                    stepIn(): Stepable | option_t {
+                        while (true) {
+                            if (this._curItem == null) {
+                                let len = items.length;
+                                if (this._idx == len) return null;
+                                let item = items[this._idx++];
+                                if (item instanceof Stepable) {
+                                    return item;
+                                } else if (item instanceof Iterable) {
+                                    this._curItem = item.getIter();
+                                } else {
+                                    let val = item[0];
+                                    return [[this._idx - 1, val]]
+                                }
+                            } else { // iterator
+                                let val = this._curItem.next();
+                                if (val == null) {
+                                    this._curItem = null;
+                                } else {
+                                    return [[this._idx - 1, val[0]]]
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+
+        }
+    }
+
     stepIn(): Stepable | option_t {
         throw "no implement"
     }

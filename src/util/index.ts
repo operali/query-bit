@@ -1,31 +1,12 @@
-import { Iterable, Iterator, option_t, Stepable, Stepper } from '../iter'
+import { Iterable, Iterator, Stepable, Stepper } from '../iter'
 
-export const gen = (first: any, next: (pre: any) => option_t): Iterator => {
-  let cur = first;
-  return new class extends Iterator {
-    next() {
-      let r = cur;
-      cur = next(cur);
-      return r;
-    }
-  }
-}
-
-export const fromN = (n: number): Iterator => {
-  let cur = n;
-  return new class extends Iterator {
-    next(): [any] {
-      let r = cur++;
-      return [r];
-    }
-  }
-}
 
 /**
  * @param iters 
  * (a, b) to ((0, a1)...(0, an)...(1, b1)...(1, bn));
  */
 export const orGen = (...iters: Iterable[]): Iterable => {
+  Iterator.fromArray(iters);
   let i = 0;
   let curIter: Iterator = null;
   let tree = new class extends Stepper {
