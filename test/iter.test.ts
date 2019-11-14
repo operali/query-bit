@@ -57,20 +57,32 @@ test('filterIter', () => {
 test('linq func', () => {
     let n = new nubmerable();
     {
-        let n1 = n.elim();
+        let it = n.getIter();
+        expect(it.nth(0)).toEqual([0]);
+    }
+    {
+        let n1 = n.cons(3);
+        expect(n1.getIter().next()).toEqual([3]);
+        expect(n1.getIter().nth(0)).toEqual([3]);
+        expect(n1.nth(0)).toEqual([3]);
+        expect(n1.nth(1)).toEqual([0]);
+        expect(n1.nth(2)).toEqual([1]);
+    }
+    {
+        let n1 = n.uncons();
         expect(n1[0]).toEqual(0);
         expect(n1[1].nth(0)).toEqual([1]);
-        expect(n1[1].nth(0)).toEqual([2]);
+        expect(n1[1].nth(0)).toEqual([1]);
     }
     {
         let n1 = n.take(5);
-        let r = n1.elim();
+        let r = n1.uncons();
         expect(r[0]).toEqual(0);
         expect(r[1].toArray()).toEqual([1, 2, 3, 4]);
     }
     {
         let n1 = n.take(0);
-        let r = n1.elim();
+        let r = n1.uncons();
         expect(r).toEqual(null);
     }
     {
@@ -107,6 +119,10 @@ test('linq func', () => {
     {
         let n1 = n.take(5).toArray();
         expect(n1).toEqual([0, 1, 2, 3, 4]);
+    }
+    {
+        // sieve
+
     }
 });
 
