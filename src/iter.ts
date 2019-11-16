@@ -1,4 +1,6 @@
-export type option_t = null | [any]
+export const EOF = Symbol('eof');
+
+export type option_t = any
 
 export class Iterable {
     getIter(): Iterator {
@@ -10,7 +12,7 @@ export class Iterable {
         return it.toArray();
     }
 
-    nth(n: number): option_t {
+    nth(n: number): any {
         return this.getIter().nth(n);
     }
 
@@ -33,7 +35,7 @@ export class Iterable {
                 let r = that.getIter().uncons();
                 if (r == null) return new class extends Iterator {
                     next(): option_t {
-                        return null;
+                        return EOF;
                     }
                 };
                 else return r[1];
@@ -93,6 +95,7 @@ export class Iterable {
 }
 
 export class Iterator {
+    static EOF: Symbol = EOF;
     static gen(first: any, next: (pre: any) => option_t): Iterator {
         let cur = first;
         return new class extends Iterator {
@@ -107,9 +110,9 @@ export class Iterator {
     static fromN(n: number): Iterator {
         let cur = n;
         return new class extends Iterator {
-            next(): [any] {
+            next(): any {
                 let r = cur++;
-                return [r];
+                return r;
             }
         }
     }
@@ -121,7 +124,7 @@ export class Iterator {
                 if (i == ns.length) {
                     return null;
                 }
-                return [ns[i++]];
+                return ns[i++];
             }
         }
     }
@@ -134,8 +137,8 @@ export class Iterator {
         let r = [];
         while (true) {
             let item = this.next();
-            if (item == null) return r;
-            r.push(item[0]);
+            if (item == EOF) return r;
+            r.push(item);
         }
     }
 
@@ -143,7 +146,7 @@ export class Iterator {
         let r = null;
         for (let i = -1; i < n; ++i) {
             r = this.next();
-            if (r == null) return null;
+            if (r == EOF) return EOF;
         }
         return r;
     }
@@ -154,8 +157,8 @@ export class Iterator {
             next() {
                 while (true) {
                     let item = it.next();
-                    if (item == null) return null;
-                    else if (filterF(item[0])) {
+                    if (item == EOF) return EOF;
+                    else if (filterF(item)) {
                         return item;
                     }
                 }
@@ -168,8 +171,8 @@ export class Iterator {
         return new class extends Iterator {
             next(): option_t {
                 let item = it.next();
-                if (item == null) return null;
-                return [trans(item[0])];
+                if (item == EOF) return EOF;
+                return trans(item);
             }
         }
     }
@@ -179,8 +182,8 @@ export class Iterator {
         let it = this;
         while (true) {
             let item = it.next();
-            if (item == null) return r;
-            r = acc(r, item[0])
+            if (item == EOF) return r;
+            r = acc(r, item);
         }
     }
 
@@ -191,7 +194,7 @@ export class Iterator {
             next(): option_t {
                 if (head) {
                     head = false;
-                    return [elem];
+                    return elem;
                 } else {
                     return that.next();
                 }
@@ -201,9 +204,9 @@ export class Iterator {
 
     uncons(): [any, Iterator] {
         let that = this;
-        let h = that.next();
-        if (h == null) return null;
-        return [h[0], that];
+        let item = that.next();
+        if (item == EOF) return null;
+        return [item, that];
     }
 
     take(n: number): Iterator {
@@ -211,19 +214,20 @@ export class Iterator {
         let count = 0;
         return new class extends Iterator {
             next() {
-                if (count == n) return null;
+                if (count == n) return EOF;
                 let r = that.next();
-                if (r == null) return null;
+                if (r == EOF) return EOF;
                 count++;
                 return r;
             }
         }
     }
 
-    skip(n: number): Iterator {
+    skip(n: number): Iterator | null {
         let it = this;
         for (let i = 0; i < n; ++i) {
             let r = it.next();
+            if (r == EOF) return it;
         }
         return it;
     }
@@ -233,7 +237,7 @@ export class Iterator {
         let c = 0;
         while (true) {
             let item = it.next();
-            if (item == null) return c;
+            if (item == EOF) return c;
             c++;
         }
     }
@@ -256,9 +260,6 @@ export class Stepable {
 }
 
 export class Stepper {
-    static fromArray(items: (Stepable | Iterable | any)[]) {
-        
-    }
     /** 
      * (a, b) to ((0, a1)...(0, an)...(1, b1)...(1, bn));
      */
@@ -284,15 +285,14 @@ export class Stepper {
                                 } else if (item instanceof Iterable) {
                                     this._curItem = item.getIter();
                                 } else {
-                                    let val = item[0];
-                                    return [[this._idx - 1, val]]
+                                    return [this._idx - 1, item];
                                 }
                             } else { // iterator
-                                let val = this._curItem.next();
-                                if (val == null) {
+                                let item = this._curItem.next();
+                                if (item == EOF) {
                                     this._curItem = null;
                                 } else {
-                                    return [[this._idx - 1, val[0]]]
+                                    return [this._idx - 1, item];
                                 }
                             }
                         }
@@ -320,10 +320,10 @@ export class Stepper {
             }
 
             next(): option_t {
-                let opst = null;
+                let opst: Stepable | option_t = EOF;
                 while (true) {
                     opst = this._curSt.stepIn();
-                    if (opst == null) {
+                    if (opst == EOF) {
                         if (this._stStk.length == 0) return null;
                         this._curSt = this._stStk.pop();
                     } else if (opst instanceof Stepable) {
