@@ -1,4 +1,5 @@
 export const EOF = Symbol('eof');
+export const NOTHING = Symbol('nothing');
 
 export type option_t = any
 
@@ -7,13 +8,12 @@ export class Iterable {
         throw "no implement"
     }
 
-    toArray(): any[] {
-        let it = this.getIter();
-        return it.toArray();
-    }
-
-    nth(n: number): any {
-        return this.getIter().nth(n);
+    flatten(): Iterable {
+        return new class extends Iterable {
+            next() {
+                return this.getIter().flatten();
+            }
+        }
     }
 
     cons(elem: any): Iterable {
@@ -64,11 +64,6 @@ export class Iterable {
         };
     }
 
-    fold(init: any, acc: (pre: any, item: any) => any): any {
-        let that = this;
-        return that.getIter().fold(init, acc);
-    }
-
     take(n: number): Iterable {
         let that = this;
         return new class extends Iterable {
@@ -88,43 +83,84 @@ export class Iterable {
             }
         };
     }
-
-    length(): number {
-        return this.getIter().length();
-    }
 }
 
 export class Iterator {
     static EOF: Symbol = EOF;
     static gen(first: any, next: (pre: any) => option_t): Iterator {
-        let cur = first;
-        return new class extends Iterator {
+        let c = class extends Iterator {
+            _cur: number = first;
             next() {
-                let r = cur;
-                cur = next(cur);
+                let r = this._cur;
+                this._cur = next(this._cur);
                 return r;
             }
+
+            clone(): Iterator {
+                let o = new c();
+                o._cur = this._cur;
+                return o;
+            }
         }
+        return new c();
     }
 
     static fromN(n: number): Iterator {
-        let cur = n;
-        return new class extends Iterator {
+        let c = class extends Iterator {
+            cur = n;
             next(): any {
-                let r = cur++;
+                let r = this.cur++;
                 return r;
             }
+
+            clone(): Iterator {
+                let o = new c();
+                o.cur = this.cur;
+                return o;
+            }
         }
+        return new c();
     }
 
     static fromArray(ns: any[]): Iterator {
-        let i = 0;
-        return new class extends Iterator {
+        let c = class extends Iterator {
+            cur = 0;
             next(): option_t {
-                if (i == ns.length) {
+                if (this.cur == ns.length) {
                     return null;
                 }
-                return ns[i++];
+                return ns[this.cur++];
+            }
+
+            clone(): Iterator {
+                let o = new c();
+                o.cur = this.cur;
+                return o;
+            }
+        }
+        return new c();
+    }
+
+    flatten(): Iterator {
+        let that = this;
+        return new class extends Iterator {
+            _iterStk: Iterator[] = [];
+            _curIter: Iterator = that;
+            next(): option_t {
+                while (true) {
+                    let r = this._curIter.next();
+                    if (r == EOF) {
+                        if (this._iterStk.length == 0) return EOF;
+                        this._curIter = this._iterStk.pop();
+                        continue;
+                    } else if (r instanceof Iterator) {
+                        this._iterStk.push(this._curIter);
+                        this._curIter = r;
+                        continue;
+                    } else {
+                        return r;
+                    }
+                }
             }
         }
     }
@@ -241,99 +277,19 @@ export class Iterator {
             c++;
         }
     }
-}
 
-export class Stepable {
-    getStep(): Stepper {
-        throw "no implement"
+    clone(): Iterator {
+        throw "no implement";
     }
 
-    toIterable(): Iterable {
-        const that = this;
+    toIterable() {
+        let that = this.clone();
         return new class extends Iterable {
-            getIter(): Iterator {
-                let stepper = that.getStep();
-                return stepper.toIterator();
-            }
-        };
-    }
-}
-
-export class Stepper {
-    /** 
-     * (a, b) to ((0, a1)...(0, an)...(1, b1)...(1, bn));
-     */
-    static fromEnum(items: (Stepable | Iterable | any)[]) {
-        return new class extends Stepable {
-            getStep() {
-                return new class extends Stepper {
-                    _idx: number
-                    _curItem: Iterator;
-                    constructor() {
-                        super();
-                        this._idx = 0;
-                        this._curItem = null;
-                    }
-                    stepIn(): Stepable | option_t {
-                        while (true) {
-                            if (this._curItem == null) {
-                                let len = items.length;
-                                if (this._idx == len) return null;
-                                let item = items[this._idx++];
-                                if (item instanceof Stepable) {
-                                    return item;
-                                } else if (item instanceof Iterable) {
-                                    this._curItem = item.getIter();
-                                } else {
-                                    return [this._idx - 1, item];
-                                }
-                            } else { // iterator
-                                let item = this._curItem.next();
-                                if (item == EOF) {
-                                    this._curItem = null;
-                                } else {
-                                    return [this._idx - 1, item];
-                                }
-                            }
-                        }
-
-                    }
-                }
-            }
-
-        }
-    }
-
-    stepIn(): Stepable | option_t {
-        throw "no implement"
-    }
-
-    toIterator(): Iterator {
-        let that = this;
-        return new class _iterator extends Iterator {
-            _curSt: Stepper
-            _stStk: Stepper[]
-            constructor() {
-                super();
-                this._curSt = that;
-                this._stStk = [];
-            }
-
-            next(): option_t {
-                let opst: Stepable | option_t = EOF;
-                while (true) {
-                    opst = this._curSt.stepIn();
-                    if (opst == EOF) {
-                        if (this._stStk.length == 0) return null;
-                        this._curSt = this._stStk.pop();
-                    } else if (opst instanceof Stepable) {
-                        this._stStk.push(this._curSt);
-                        this._curSt = opst.getStep();
-                    } else {
-                        return opst;
-                    }
-                };
+            getIter() {
+                return that.clone();
             }
         }
     }
 }
+
+

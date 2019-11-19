@@ -1,4 +1,4 @@
-import { Iterable, Iterator, Stepable, Stepper, option_t } from '../src/iter';
+import { EOF, Iterable, Iterator, option_t } from '../src/iter';
 
 let nubmerable = class extends Iterable {
     getIter() {
@@ -63,21 +63,21 @@ test('linq func', () => {
         let n1 = n.cons(3);
         expect(n1.getIter().next()).toEqual(3);
         expect(n1.getIter().nth(0)).toEqual(3);
-        expect(n1.nth(0)).toEqual(3);
-        expect(n1.nth(1)).toEqual(0);
-        expect(n1.nth(2)).toEqual(1);
+        expect(n1.getIter().nth(0)).toEqual(3);
+        expect(n1.getIter().nth(1)).toEqual(0);
+        expect(n1.getIter().nth(2)).toEqual(1);
     }
     {
         let n1 = n.uncons();
         expect(n1[0]).toEqual(0);
-        expect(n1[1].nth(0)).toEqual(1);
-        expect(n1[1].nth(0)).toEqual(1);
+        expect(n1[1].getIter().nth(0)).toEqual(1);
+        expect(n1[1].getIter().nth(0)).toEqual(1);
     }
     {
         let n1 = n.take(5);
         let r = n1.uncons();
         expect(r[0]).toEqual(0);
-        expect(r[1].toArray()).toEqual([1, 2, 3, 4]);
+        expect(r[1].getIter().toArray()).toEqual([1, 2, 3, 4]);
     }
     {
         let n1 = n.take(0);
@@ -85,12 +85,12 @@ test('linq func', () => {
         expect(r).toEqual(null);
     }
     {
-        let sum = n.take(5).fold(0, (a, i) => a + i);
+        let sum = n.take(5).getIter().fold(0, (a, i) => a + i);
         expect(sum).toEqual(10);
     }
     {
         let n1 = n.take(5)
-        expect(n1.length()).toEqual(5);
+        expect(n1.getIter().length()).toEqual(5);
     }
     {
         let n1 = n.map(i => i * 2);
@@ -107,7 +107,7 @@ test('linq func', () => {
         expect(it.next()).toEqual(6);
     }
     {
-        let n1 = n.nth(100);
+        let n1 = n.getIter().nth(100);
         expect(n1).toEqual(100);
     }
     {
@@ -116,7 +116,7 @@ test('linq func', () => {
         expect(it.next()).toEqual(5);
     }
     {
-        let n1 = n.take(5).toArray();
+        let n1 = n.take(5).getIter().toArray();
         expect(n1).toEqual([0, 1, 2, 3, 4]);
     }
     {
@@ -125,71 +125,60 @@ test('linq func', () => {
     }
 });
 
-interface table_t {
-    [idx: number]: (table_t | number)
-}
 
-class tableStepable extends Stepable {
-    _tab: table_t
-    constructor(tab: table_t) {
-        super();
-        this._tab = tab;
-    }
-    getStep() {
-        return new tableStepper(this._tab);
-    }
-}
-
-class tableStepper extends Stepper {
-    _tab: table_t
-    _idx: number
-    constructor(tab: table_t) {
-        super();
-        this._tab = tab;
-        this._idx = 0;
-    }
-    stepIn(): Stepable | option_t {
-        let item = this._tab[this._idx++];
-        if (typeof item == 'number') {
-            return item
-        } else if (item == undefined) {
-            return Iterator.EOF;
-        } else {
-            return new tableStepable(item);
-        }
-    }
-}
-
-test('tableIter', () => {
+test('from', () => {
     {
-        let tab: table_t = [3, 4, [5, 6], [7, [8, [9, 10, 11]]]];
-        let tabStab = new tableStepable(tab);
-        let tabSter = tabStab.getStep();
-        let iter = tabSter.toIterator();
-        for (let i = 3; i < 12; ++i) {
-            expect(iter.next()).toEqual(i);
+        let a = Iterator.fromN(0);
+        expect(a.next()).toEqual(0);
+        expect(a.next()).toEqual(1);
+        let b = a.clone();
+        expect(a.next()).toEqual(2);
+        expect(b.next()).toEqual(2);
+    }
+    {
+        let a = Iterator.fromArray([0, 1, 2, 3, 4]);
+        expect(a.next()).toEqual(0);
+        expect(a.next()).toEqual(1);
+        let b = a.clone();
+        expect(a.next()).toEqual(2);
+        expect(b.next()).toEqual(2);
+    }
+})
+
+let arr = [[1, 2], [3, 4], [5, [6, [7]]]];
+
+interface arr_t {
+    [key: number]: arr_t | number
+    [Symbol.iterator]();
+    length: number
+}
+
+const fromArr = (arr: arr_t): Iterator => {
+    return new class extends Iterator {
+        cur: number = 0;
+        next() {
+            if (this.cur == arr.length) return EOF;
+            let item = arr[this.cur++];
+            if (item instanceof Array) {
+                return fromArr(item);
+            } else {
+                return item;
+            }
         }
     }
+}
+
+test('flatter', () => {
+    let it = fromArr([1, 2, [3, [4, [[5], 6]]]]);
+    expect(it.flatten().toArray()).toEqual([1, 2, 3, 4, 5, 6]);
 });
 
-
-// test('fromEnum', () => {
-//     {
-//         let tab: option_t[] = [[1], [2], [3], [4]];
-//         let st = Stepper.fromEnum(tab);
-//         let it = st.toIterable().getIter();
-//         expect(it.toArray()).toEqual([[0, 1], [1, 2], [2, 3], [3, 4]]);
+// const fromArr = (arr:any[])=>{
+//     return new class extends Iterable {
+//         getIter()
 //     }
+// };
 
-//     {
-//         let itab = new class extends Iterable {
-//             getIter() {
-//                 return Iterator.fromN(3);
-//             }
-//         }
-//         let tab: Iterable[] = [itab];
-//         let st = Stepper.fromEnum(tab);
-//         let it = st.toIterable().getIter();
-//         expect(it.take(3).toArray()).toEqual([[0, 3], [0, 4], [0, 5]]);
-//     }
+// test('flatter', () => {
+//     Iterator
 // });
