@@ -336,7 +336,6 @@ class SUMIter extends Iterable {
         return new class extends Stepper {
             _curIter: Iterator = null;
             _idx: number = -1;
-            _async: any = _noasync;
             step() {
                 while (true) {
                     if (this._curIter == null) {
@@ -377,4 +376,63 @@ class SUMIter extends Iterable {
 
 export const sum = (...its: Iterable[]) => {
     return new SUMIter(...its);
+}
+
+
+class ProductIter extends Iterable {
+    iterables: Iterable[] = []
+    constructor(...its: Iterable[]) {
+        super();
+        this.iterables = [...its];
+    }
+
+    getIter() {
+        let itStk: Iterator[] = [];
+        let valStk: any[] = [];
+        let itabs = this.iterables;
+        let cur: Iterator = null;
+        return new class extends Stepper {
+            step(): option_t | Iterator {
+                while (true) {
+                    let idx = itStk.length;
+                    if (idx == itabs.length) {
+                        cur = itStk.pop();
+                        let r = [...valStk];
+                        valStk.pop();
+                        return r;
+                    } else {
+                        if (cur == null) {
+                            cur = itabs[idx].getIter();
+                        } else if (this._async != _noasync) {
+                            (cur as Stepper).resolve(this._async);
+                            this._async = _noasync;
+                        }
+                        let item: Stepper | option_t = null;
+                        if (cur instanceof Stepper) {
+                            item = cur.step();
+                        } else {
+                            item = cur.next();
+                        }
+                        if (item == EOF) {
+                            if (idx == 0) return EOF;
+                            cur = itStk.pop();
+                            valStk.pop();
+                            continue;
+                        } else if (item instanceof Stepper) {
+                            this._async = _waiting;
+                            return item;
+                        } else {
+                            valStk.push(item);
+                            itStk.push(cur);
+                            cur = null;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export const product = (...its: Iterable[]) => {
+    return new ProductIter(...its);
 }

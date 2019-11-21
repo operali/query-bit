@@ -1,4 +1,4 @@
-import { EOF, Iterable, Iterator, option_t, sum, Stepper } from '../src/iter';
+import { EOF, Iterable, Iterator, option_t, sum, Stepper, product } from '../src/iter';
 
 let nubmerable = class extends Iterable {
     getIter() {
@@ -207,3 +207,22 @@ test('sum', () => {
 
     // expect(sum(it1, it2).getIter().toArray()).toEqual([[0, 1], [0, 2], [1, 4], [1, 5]]);
 })
+
+test('product', ()=>{
+    let itab1 = Iterator.fromArray([1, 2]).toIterable();
+    let itab2 = Iterator.fromArray([4, 5]).toIterable();
+    let itab3 = product(itab1, itab2);
+    expect(itab3.getIter().toArray()).toEqual([[1,4], [1,5], [2, 4], [2, 5]]);
+    
+    let itb4 = product(itab3, itab1);
+    let it = itb4.getIter();
+    expect(it.next()).toEqual([[1,4], 1]);
+    expect(it.next()).toEqual([[1,4], 2]);
+    expect(it.next()).toEqual([[1,5], 1]);
+    expect(it.next()).toEqual([[1,5], 2]);
+    expect(it.next()).toEqual([[2,4], 1]);
+    expect(it.next()).toEqual([[2,4], 2]);
+    expect(it.next()).toEqual([[2,5], 1]);
+    expect(it.next()).toEqual([[2,5], 2]);
+    expect(it.next()).toEqual(EOF);
+});
