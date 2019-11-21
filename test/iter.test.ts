@@ -180,49 +180,79 @@ test('flatter', () => {
 test('sum', () => {
     let itab1 = Iterator.fromArray([1, 2]).toIterable();
     let itab2 = Iterator.fromArray([4, 5]).toIterable();
-    
+
 
 
     let itab3 = sum(itab1, itab2)
     let it1 = itab3.getIter();
-    expect(it1.next()).toEqual([0,1]);
-    expect(it1.next()).toEqual([0,2]);
-    expect(it1.next()).toEqual([1,4]);
-    expect(it1.next()).toEqual([1,5]);
+    expect(it1.next()).toEqual([0, 1]);
+    expect(it1.next()).toEqual([0, 2]);
+    expect(it1.next()).toEqual([1, 4]);
+    expect(it1.next()).toEqual([1, 5]);
     expect(it1.next()).toEqual(EOF);
-    
+
     let itab4 = sum(itab3, itab3);
     let it4 = itab4.getIter();
-    
-    expect(it4.next()).toEqual([0, [0,1]]);
-    expect(it4.next()).toEqual([0, [0,2]]);
-    expect(it4.next()).toEqual([0, [1,4]]);
-    expect(it4.next()).toEqual([0, [1,5]]);
-    expect(it4.next()).toEqual([1, [0,1]]);
-    expect(it4.next()).toEqual([1, [0,2]]);
-    expect(it4.next()).toEqual([1, [1,4]]);
-    expect(it4.next()).toEqual([1, [1,5]]);
+
+    expect(it4.next()).toEqual([0, [0, 1]]);
+    expect(it4.next()).toEqual([0, [0, 2]]);
+    expect(it4.next()).toEqual([0, [1, 4]]);
+    expect(it4.next()).toEqual([0, [1, 5]]);
+    expect(it4.next()).toEqual([1, [0, 1]]);
+    expect(it4.next()).toEqual([1, [0, 2]]);
+    expect(it4.next()).toEqual([1, [1, 4]]);
+    expect(it4.next()).toEqual([1, [1, 5]]);
     expect(it4.next()).toEqual(EOF);
-    
+
 
     // expect(sum(it1, it2).getIter().toArray()).toEqual([[0, 1], [0, 2], [1, 4], [1, 5]]);
 })
 
-test('product', ()=>{
+test('product', () => {
     let itab1 = Iterator.fromArray([1, 2]).toIterable();
     let itab2 = Iterator.fromArray([4, 5]).toIterable();
     let itab3 = product(itab1, itab2);
-    expect(itab3.getIter().toArray()).toEqual([[1,4], [1,5], [2, 4], [2, 5]]);
-    
-    let itb4 = product(itab3, itab1);
-    let it = itb4.getIter();
-    expect(it.next()).toEqual([[1,4], 1]);
-    expect(it.next()).toEqual([[1,4], 2]);
-    expect(it.next()).toEqual([[1,5], 1]);
-    expect(it.next()).toEqual([[1,5], 2]);
-    expect(it.next()).toEqual([[2,4], 1]);
-    expect(it.next()).toEqual([[2,4], 2]);
-    expect(it.next()).toEqual([[2,5], 1]);
-    expect(it.next()).toEqual([[2,5], 2]);
-    expect(it.next()).toEqual(EOF);
+    expect(itab3.getIter().toArray()).toEqual([[1, 4], [1, 5], [2, 4], [2, 5]]);
+
+
+    {
+        let itb4 = product(itab3, itab1);
+        let it = itb4.getIter();
+        expect(it.next()).toEqual([[1, 4], 1]);
+        expect(it.next()).toEqual([[1, 4], 2]);
+        expect(it.next()).toEqual([[1, 5], 1]);
+        expect(it.next()).toEqual([[1, 5], 2]);
+        expect(it.next()).toEqual([[2, 4], 1]);
+        expect(it.next()).toEqual([[2, 4], 2]);
+        expect(it.next()).toEqual([[2, 5], 1]);
+        expect(it.next()).toEqual([[2, 5], 2]);
+        expect(it.next()).toEqual(EOF);
+    }
+
+    {
+        let itb4 = product(itab3, itab3);
+        let it = itb4.getIter();
+        expect(it.next()).toEqual([[1, 4], [1, 4]]);
+        expect(it.next()).toEqual([[1, 4], [1, 5]]);
+        expect(it.next()).toEqual([[1, 4], [2, 4]]);
+        expect(it.next()).toEqual([[1, 4], [2, 5]]);
+
+        expect(it.next()).toEqual([[1, 5], [1, 4]]);
+        expect(it.next()).toEqual([[1, 5], [1, 5]]);
+        expect(it.next()).toEqual([[1, 5], [2, 4]]);
+        expect(it.next()).toEqual([[1, 5], [2, 5]]);
+
+        expect(it.next()).toEqual([[2, 4], [1, 4]]);
+        expect(it.next()).toEqual([[2, 4], [1, 5]]);
+        expect(it.next()).toEqual([[2, 4], [2, 4]]);
+        expect(it.next()).toEqual([[2, 4], [2, 5]]);
+
+        expect(it.next()).toEqual([[2, 5], [1, 4]]);
+        expect(it.next()).toEqual([[2, 5], [1, 5]]);
+        expect(it.next()).toEqual([[2, 5], [2, 4]]);
+        expect(it.next()).toEqual([[2, 5], [2, 5]]);
+
+        expect(it.next()).toEqual(EOF);
+    }
+
 });

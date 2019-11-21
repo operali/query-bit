@@ -342,7 +342,6 @@ class SUMIter extends Iterable {
                         ++this._idx;
                         if (this._idx == that.iterables.length) return EOF;
                         this._curIter = that.iterables[this._idx].getIter();
-                        console.log('next', this._idx);
                         continue;
                     } else {
                         let item: any = EOF;
@@ -361,7 +360,6 @@ class SUMIter extends Iterable {
                             item = this._curIter.next();
                         }
                         if (item == EOF) {
-                            console.log('item == EOF')
                             this._curIter = null;
                             continue;
                         } else { // value
