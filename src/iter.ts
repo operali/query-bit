@@ -1,5 +1,5 @@
 export const EOF = Symbol('eof');
-export const NOTHING = Symbol('nothing');
+// export const NOTHING = Symbol('nothing');
 
 export type option_t = any
 
@@ -127,7 +127,7 @@ export class Iterator {
             cur = 0;
             next(): option_t {
                 if (this.cur == ns.length) {
-                    return null;
+                    return EOF;
                 }
                 return ns[this.cur++];
             }
@@ -292,4 +292,89 @@ export class Iterator {
     }
 }
 
+export const _noasync = Symbol('_noasync');
+export const _waiting = Symbol('_waiting');
 
+export class Stepper extends Iterator {
+    _async: any = _noasync;
+
+    next() {
+        let stepStk: Stepper[] = [];
+        let curStepper: Stepper = this;
+        while (true) {
+            let opv = curStepper.step();
+            if (opv instanceof Stepper) {
+                stepStk.push(curStepper);
+                curStepper = opv;
+            } else {
+                if (stepStk.length == 0) return opv;
+                curStepper = stepStk.pop();
+                curStepper.resolve(opv);
+            }
+        }
+    }
+
+    step(): Stepper | Iterator | option_t {
+        throw "no implement";
+    }
+
+    resolve(val: any) {
+        this._async = val;
+    }
+}
+
+
+class SUMIter extends Iterable {
+    iterables: Iterable[] = []
+    constructor(...its: Iterable[]) {
+        super();
+        this.iterables = [...its];
+    }
+
+    getIter(): Iterator {
+        const that = this;
+        return new class extends Stepper {
+            _curIter: Iterator = null;
+            _idx: number = -1;
+            _async: any = _noasync;
+            step() {
+                while (true) {
+                    if (this._curIter == null) {
+                        ++this._idx;
+                        if (this._idx == that.iterables.length) return EOF;
+                        this._curIter = that.iterables[this._idx].getIter();
+                        console.log('next', this._idx);
+                        continue;
+                    } else {
+                        let item: any = EOF;
+                        if (this._async !== _noasync) {
+                            item = this._async;
+                            this._async = _noasync;
+                            (this._curIter as Stepper).resolve(item);
+                        }
+                        if (this._curIter instanceof Stepper) {
+                            item = this._curIter.step();
+                            if (item instanceof Iterator) {
+                                this._async = "waiting";
+                                return item;
+                            }
+                        } else { // iterator
+                            item = this._curIter.next();
+                        }
+                        if (item == EOF) {
+                            console.log('item == EOF')
+                            this._curIter = null;
+                            continue;
+                        } else { // value
+                            return [this._idx, item];
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export const sum = (...its: Iterable[]) => {
+    return new SUMIter(...its);
+}

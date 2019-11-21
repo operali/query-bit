@@ -1,4 +1,4 @@
-import { EOF, Iterable, Iterator, option_t } from '../src/iter';
+import { EOF, Iterable, Iterator, option_t, sum, Stepper } from '../src/iter';
 
 let nubmerable = class extends Iterable {
     getIter() {
@@ -142,6 +142,9 @@ test('from', () => {
         let b = a.clone();
         expect(a.next()).toEqual(2);
         expect(b.next()).toEqual(2);
+        expect(b.next()).toEqual(3);
+        expect(b.next()).toEqual(4);
+        expect(b.next()).toEqual(EOF);
     }
 })
 
@@ -173,12 +176,34 @@ test('flatter', () => {
     expect(it.flatten().toArray()).toEqual([1, 2, 3, 4, 5, 6]);
 });
 
-// const fromArr = (arr:any[])=>{
-//     return new class extends Iterable {
-//         getIter()
-//     }
-// };
 
-// test('flatter', () => {
-//     Iterator
-// });
+test('sum', () => {
+    let itab1 = Iterator.fromArray([1, 2]).toIterable();
+    let itab2 = Iterator.fromArray([4, 5]).toIterable();
+    
+
+
+    let itab3 = sum(itab1, itab2)
+    let it1 = itab3.getIter();
+    expect(it1.next()).toEqual([0,1]);
+    expect(it1.next()).toEqual([0,2]);
+    expect(it1.next()).toEqual([1,4]);
+    expect(it1.next()).toEqual([1,5]);
+    expect(it1.next()).toEqual(EOF);
+    
+    let itab4 = sum(itab3, itab3);
+    let it4 = itab4.getIter();
+    
+    expect(it4.next()).toEqual([0, [0,1]]);
+    expect(it4.next()).toEqual([0, [0,2]]);
+    expect(it4.next()).toEqual([0, [1,4]]);
+    expect(it4.next()).toEqual([0, [1,5]]);
+    expect(it4.next()).toEqual([1, [0,1]]);
+    expect(it4.next()).toEqual([1, [0,2]]);
+    expect(it4.next()).toEqual([1, [1,4]]);
+    expect(it4.next()).toEqual([1, [1,5]]);
+    expect(it4.next()).toEqual(EOF);
+    
+
+    // expect(sum(it1, it2).getIter().toArray()).toEqual([[0, 1], [0, 2], [1, 4], [1, 5]]);
+})
