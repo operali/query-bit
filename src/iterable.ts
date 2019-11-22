@@ -422,14 +422,14 @@ class ProductIter extends Iterable {
                             if (idx == len) {
                                 idx--;
                                 let r = [...valStk];
-                                console.log('getCur:', cur);
                                 valStk.pop();
                                 state = stNext;
                                 return r;
                             }
+                            if (cur != null) {
+                                itStk.push(cur);
+                            }
                             cur = itabs[idx].getIter();
-                            itStk.push(cur);
-                            console.log('stIter:', idx);
                         case stNext:
                             if (cur instanceof Stepper) {
                                 item = cur.step();
@@ -446,6 +446,7 @@ class ProductIter extends Iterable {
                         // state = stValue
                         case stValue:
                             valStk.push(item);
+                            // console.log('value push');
                             state = stIter;
                             idx++;
                             continue;
@@ -453,7 +454,6 @@ class ProductIter extends Iterable {
                             if (idx == 0) return RET;
                             idx--;
                             cur = itStk.pop();
-                            console.log('getCur1111:', cur);
                             valStk.pop();
                             state = stNext;
                         default:
