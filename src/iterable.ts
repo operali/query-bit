@@ -348,38 +348,42 @@ class SUMIter extends Iterable {
 
     getIter(): Iterator {
         const that = this;
+        let itabs = this.iterables;
+        let cur: Iterator = null;
+        const stIter = 1;
+        const stNext = 2;
+        const stValue = 3;
+        let state = stIter;
+        let idx = 0;
+        let len = itabs.length;
         return new class extends Stepper {
-            _curIter: Iterator = null;
-            _idx: number = -1;
             step() {
+                let item: any = null;
                 while (true) {
-                    if (this._curIter == null) {
-                        ++this._idx;
-                        if (this._idx == that.iterables.length) return RET;
-                        this._curIter = that.iterables[this._idx].getIter();
-                        continue;
-                    } else {
-                        let item: any = RET;
-                        if (this._async !== SYNC) {
-                            item = this._async;
-                            this._async = SYNC;
-                            (this._curIter as Stepper).resolve(item);
-                        }
-                        if (this._curIter instanceof Stepper) {
-                            item = this._curIter.step();
-                            if (item instanceof Iterator) {
-                                this._async = "waiting";
-                                return item;
+                    switch (state) {
+                        case stIter:
+                            if (idx == len) return RET;
+                            let itab = itabs[idx];
+                            cur = itab.getIter();
+                        case stNext:
+                            if (cur instanceof Stepper) {
+                                item = cur.step();
+                                if (item instanceof Stepper) {
+                                    state = stValue;
+                                    return item;
+                                }
+                            } else {
+                                item = cur.next();
                             }
-                        } else { // iterator
-                            item = this._curIter.next();
-                        }
-                        if (item == RET) {
-                            this._curIter = null;
-                            continue;
-                        } else { // value
-                            return [this._idx, item];
-                        }
+                        case stValue:
+                            if (item == RET) {
+                                state = stIter;
+                                idx++;
+                                continue;
+                            }
+                            state = stNext;
+                            return [idx, item];
+                        default: ;
                     }
                 }
             }
