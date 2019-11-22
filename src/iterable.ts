@@ -1,9 +1,78 @@
-export const EOF = Symbol('eof');
-// export const NOTHING = Symbol('nothing');
+// iterator values
+export const RET = Symbol('RET');
+export const CONTINUE = Symbol('CONTINUE');
+export const BREAK = Symbol('BREAK');
 
+//RET | CONTINUE | BREAK | any
 export type option_t = any
 
 export class Iterable {
+    static RET: Symbol = RET;
+    static CONTINUE: Symbol = CONTINUE;
+    static BREAK: Symbol = BREAK;
+
+    static fromGenerator(first: any, next: (pre: any) => option_t): Iterator {
+        let c = class extends Iterator {
+            _cur: number = first;
+            next() {
+                let r = this._cur;
+                this._cur = next(this._cur);
+                return r;
+            }
+
+            clone(): Iterator {
+                let o = new c();
+                o._cur = this._cur;
+                return o;
+            }
+        }
+        return new c();
+    }
+
+    static fromN(n: number): Iterator {
+        let c = class extends Iterator {
+            cur = n;
+            next(): any {
+                let r = this.cur++;
+                return r;
+            }
+
+            clone(): Iterator {
+                let o = new c();
+                o.cur = this.cur;
+                return o;
+            }
+        }
+        return new c();
+    }
+
+    static fromArray(ns: any[]): Iterator {
+        let c = class extends Iterator {
+            cur = 0;
+            next(): option_t {
+                if (this.cur == ns.length) {
+                    return RET;
+                }
+                return ns[this.cur++];
+            }
+
+            clone(): Iterator {
+                let o = new c();
+                o.cur = this.cur;
+                return o;
+            }
+        }
+        return new c();
+    }
+
+    static sum(...its: Iterable[]) {
+        return new SUMIter(...its);
+    }
+
+    static product(...its: Iterable[]) {
+        return new ProductIter(...its);
+    }
+
     getIter(): Iterator {
         throw "no implement"
     }
@@ -35,7 +104,7 @@ export class Iterable {
                 let r = that.getIter().uncons();
                 if (r == null) return new class extends Iterator {
                     next(): option_t {
-                        return EOF;
+                        return RET;
                     }
                 };
                 else return r[1];
@@ -86,61 +155,6 @@ export class Iterable {
 }
 
 export class Iterator {
-    static EOF: Symbol = EOF;
-    static gen(first: any, next: (pre: any) => option_t): Iterator {
-        let c = class extends Iterator {
-            _cur: number = first;
-            next() {
-                let r = this._cur;
-                this._cur = next(this._cur);
-                return r;
-            }
-
-            clone(): Iterator {
-                let o = new c();
-                o._cur = this._cur;
-                return o;
-            }
-        }
-        return new c();
-    }
-
-    static fromN(n: number): Iterator {
-        let c = class extends Iterator {
-            cur = n;
-            next(): any {
-                let r = this.cur++;
-                return r;
-            }
-
-            clone(): Iterator {
-                let o = new c();
-                o.cur = this.cur;
-                return o;
-            }
-        }
-        return new c();
-    }
-
-    static fromArray(ns: any[]): Iterator {
-        let c = class extends Iterator {
-            cur = 0;
-            next(): option_t {
-                if (this.cur == ns.length) {
-                    return EOF;
-                }
-                return ns[this.cur++];
-            }
-
-            clone(): Iterator {
-                let o = new c();
-                o.cur = this.cur;
-                return o;
-            }
-        }
-        return new c();
-    }
-
     flatten(): Iterator {
         let that = this;
         return new class extends Iterator {
@@ -149,8 +163,8 @@ export class Iterator {
             next(): option_t {
                 while (true) {
                     let r = this._curIter.next();
-                    if (r == EOF) {
-                        if (this._iterStk.length == 0) return EOF;
+                    if (r == RET) {
+                        if (this._iterStk.length == 0) return RET;
                         this._curIter = this._iterStk.pop();
                         continue;
                     } else if (r instanceof Iterator) {
@@ -173,7 +187,7 @@ export class Iterator {
         let r = [];
         while (true) {
             let item = this.next();
-            if (item == EOF) return r;
+            if (item == RET) return r;
             r.push(item);
         }
     }
@@ -182,7 +196,7 @@ export class Iterator {
         let r = null;
         for (let i = -1; i < n; ++i) {
             r = this.next();
-            if (r == EOF) return EOF;
+            if (r == RET) return RET;
         }
         return r;
     }
@@ -193,7 +207,7 @@ export class Iterator {
             next() {
                 while (true) {
                     let item = it.next();
-                    if (item == EOF) return EOF;
+                    if (item == RET) return RET;
                     else if (filterF(item)) {
                         return item;
                     }
@@ -207,7 +221,7 @@ export class Iterator {
         return new class extends Iterator {
             next(): option_t {
                 let item = it.next();
-                if (item == EOF) return EOF;
+                if (item == RET) return RET;
                 return trans(item);
             }
         }
@@ -218,7 +232,7 @@ export class Iterator {
         let it = this;
         while (true) {
             let item = it.next();
-            if (item == EOF) return r;
+            if (item == RET) return r;
             r = acc(r, item);
         }
     }
@@ -241,7 +255,7 @@ export class Iterator {
     uncons(): [any, Iterator] {
         let that = this;
         let item = that.next();
-        if (item == EOF) return null;
+        if (item == RET) return null;
         return [item, that];
     }
 
@@ -250,9 +264,9 @@ export class Iterator {
         let count = 0;
         return new class extends Iterator {
             next() {
-                if (count == n) return EOF;
+                if (count == n) return RET;
                 let r = that.next();
-                if (r == EOF) return EOF;
+                if (r == RET) return RET;
                 count++;
                 return r;
             }
@@ -263,7 +277,7 @@ export class Iterator {
         let it = this;
         for (let i = 0; i < n; ++i) {
             let r = it.next();
-            if (r == EOF) return it;
+            if (r == RET) return it;
         }
         return it;
     }
@@ -273,7 +287,7 @@ export class Iterator {
         let c = 0;
         while (true) {
             let item = it.next();
-            if (item == EOF) return c;
+            if (item == RET) return c;
             c++;
         }
     }
@@ -292,11 +306,12 @@ export class Iterator {
     }
 }
 
-export const _noasync = Symbol('_noasync');
-export const _waiting = Symbol('_waiting');
 
-export class Stepper extends Iterator {
-    _async: any = _noasync;
+// stepper states
+const SYNC = Symbol('SYN');
+const ASYNC = Symbol('ASYNC');
+class Stepper extends Iterator {
+    _async: any = SYNC;
 
     next() {
         let stepStk: Stepper[] = [];
@@ -340,14 +355,14 @@ class SUMIter extends Iterable {
                 while (true) {
                     if (this._curIter == null) {
                         ++this._idx;
-                        if (this._idx == that.iterables.length) return EOF;
+                        if (this._idx == that.iterables.length) return RET;
                         this._curIter = that.iterables[this._idx].getIter();
                         continue;
                     } else {
-                        let item: any = EOF;
-                        if (this._async !== _noasync) {
+                        let item: any = RET;
+                        if (this._async !== SYNC) {
                             item = this._async;
-                            this._async = _noasync;
+                            this._async = SYNC;
                             (this._curIter as Stepper).resolve(item);
                         }
                         if (this._curIter instanceof Stepper) {
@@ -359,7 +374,7 @@ class SUMIter extends Iterable {
                         } else { // iterator
                             item = this._curIter.next();
                         }
-                        if (item == EOF) {
+                        if (item == RET) {
                             this._curIter = null;
                             continue;
                         } else { // value
@@ -372,9 +387,6 @@ class SUMIter extends Iterable {
     }
 }
 
-export const sum = (...its: Iterable[]) => {
-    return new SUMIter(...its);
-}
 
 
 class ProductIter extends Iterable {
@@ -401,9 +413,9 @@ class ProductIter extends Iterable {
                     } else {
                         if (cur == null) {
                             cur = itabs[idx].getIter();
-                        } else if (this._async != _noasync) {
+                        } else if (this._async != SYNC) {
                             (cur as Stepper).resolve(this._async);
-                            this._async = _noasync;
+                            this._async = SYNC;
                         }
                         let item: Stepper | option_t = null;
                         if (cur instanceof Stepper) {
@@ -411,13 +423,13 @@ class ProductIter extends Iterable {
                         } else {
                             item = cur.next();
                         }
-                        if (item == EOF) {
-                            if (idx == 0) return EOF;
+                        if (item == RET) {
+                            if (idx == 0) return RET;
                             cur = itStk.pop();
                             valStk.pop();
                             continue;
                         } else if (item instanceof Stepper) {
-                            this._async = _waiting;
+                            this._async = ASYNC;
                             return item;
                         } else {
                             valStk.push(item);
@@ -429,8 +441,4 @@ class ProductIter extends Iterable {
             }
         }
     }
-}
-
-export const product = (...its: Iterable[]) => {
-    return new ProductIter(...its);
 }

@@ -1,4 +1,4 @@
-import { EOF, Iterable, Iterator, option_t, sum, Stepper, product } from '../src/iter';
+import { Iterable, Iterator } from '../src/iterable';
 
 let nubmerable = class extends Iterable {
     getIter() {
@@ -9,7 +9,7 @@ let nubmerable = class extends Iterable {
                 this._cur = 0;
             }
 
-            next(): option_t {
+            next(): any {
                 let r = this._cur++;
                 return r;
             }
@@ -30,12 +30,12 @@ let filterIter = (itab: Iterable, filter: (any) => boolean) => new class extends
     getIter() {
         let it = itab.getIter();
         return new class extends Iterator {
-            next(): option_t {
-                let opr: option_t = null;
+            next(): any {
+                let opr: any = null;
                 let r: any = null;
                 do {
                     opr = it.next();
-                    if (opr == Iterator.EOF) return Iterator.EOF;
+                    if (opr == Iterable.RET) return Iterable.RET;
                     r = opr;
                 } while (!filter(r))
                 return r;
@@ -128,7 +128,7 @@ test('linq func', () => {
 
 test('from', () => {
     {
-        let a = Iterator.fromN(0);
+        let a = Iterable.fromN(0);
         expect(a.next()).toEqual(0);
         expect(a.next()).toEqual(1);
         let b = a.clone();
@@ -136,7 +136,7 @@ test('from', () => {
         expect(b.next()).toEqual(2);
     }
     {
-        let a = Iterator.fromArray([0, 1, 2, 3, 4]);
+        let a = Iterable.fromArray([0, 1, 2, 3, 4]);
         expect(a.next()).toEqual(0);
         expect(a.next()).toEqual(1);
         let b = a.clone();
@@ -144,7 +144,7 @@ test('from', () => {
         expect(b.next()).toEqual(2);
         expect(b.next()).toEqual(3);
         expect(b.next()).toEqual(4);
-        expect(b.next()).toEqual(EOF);
+        expect(b.next()).toEqual(Iterable.RET);
     }
 })
 
@@ -160,7 +160,7 @@ const fromArr = (arr: arr_t): Iterator => {
     return new class extends Iterator {
         cur: number = 0;
         next() {
-            if (this.cur == arr.length) return EOF;
+            if (this.cur == arr.length) return Iterable.RET;
             let item = arr[this.cur++];
             if (item instanceof Array) {
                 return fromArr(item);
@@ -178,20 +178,18 @@ test('flatter', () => {
 
 
 test('sum', () => {
-    let itab1 = Iterator.fromArray([1, 2]).toIterable();
-    let itab2 = Iterator.fromArray([4, 5]).toIterable();
+    let itab1 = Iterable.fromArray([1, 2]).toIterable();
+    let itab2 = Iterable.fromArray([4, 5]).toIterable();
 
-
-
-    let itab3 = sum(itab1, itab2)
+    let itab3 = Iterable.sum(itab1, itab2)
     let it1 = itab3.getIter();
     expect(it1.next()).toEqual([0, 1]);
     expect(it1.next()).toEqual([0, 2]);
     expect(it1.next()).toEqual([1, 4]);
     expect(it1.next()).toEqual([1, 5]);
-    expect(it1.next()).toEqual(EOF);
+    expect(it1.next()).toEqual(Iterable.RET);
 
-    let itab4 = sum(itab3, itab3);
+    let itab4 = Iterable.sum(itab3, itab3);
     let it4 = itab4.getIter();
 
     expect(it4.next()).toEqual([0, [0, 1]]);
@@ -202,21 +200,19 @@ test('sum', () => {
     expect(it4.next()).toEqual([1, [0, 2]]);
     expect(it4.next()).toEqual([1, [1, 4]]);
     expect(it4.next()).toEqual([1, [1, 5]]);
-    expect(it4.next()).toEqual(EOF);
-
-
+    expect(it4.next()).toEqual(Iterable.RET);
     // expect(sum(it1, it2).getIter().toArray()).toEqual([[0, 1], [0, 2], [1, 4], [1, 5]]);
 })
 
 test('product', () => {
-    let itab1 = Iterator.fromArray([1, 2]).toIterable();
-    let itab2 = Iterator.fromArray([4, 5]).toIterable();
-    let itab3 = product(itab1, itab2);
+    let itab1 = Iterable.fromArray([1, 2]).toIterable();
+    let itab2 = Iterable.fromArray([4, 5]).toIterable();
+    let itab3 = Iterable.product(itab1, itab2);
     expect(itab3.getIter().toArray()).toEqual([[1, 4], [1, 5], [2, 4], [2, 5]]);
 
 
     {
-        let itb4 = product(itab3, itab1);
+        let itb4 = Iterable.product(itab3, itab1);
         let it = itb4.getIter();
         expect(it.next()).toEqual([[1, 4], 1]);
         expect(it.next()).toEqual([[1, 4], 2]);
@@ -226,11 +222,11 @@ test('product', () => {
         expect(it.next()).toEqual([[2, 4], 2]);
         expect(it.next()).toEqual([[2, 5], 1]);
         expect(it.next()).toEqual([[2, 5], 2]);
-        expect(it.next()).toEqual(EOF);
+        expect(it.next()).toEqual(Iterable.RET);
     }
 
     {
-        let itb4 = product(itab3, itab3);
+        let itb4 = Iterable.product(itab3, itab3);
         let it = itb4.getIter();
         expect(it.next()).toEqual([[1, 4], [1, 4]]);
         expect(it.next()).toEqual([[1, 4], [1, 5]]);
@@ -252,7 +248,6 @@ test('product', () => {
         expect(it.next()).toEqual([[2, 5], [2, 4]]);
         expect(it.next()).toEqual([[2, 5], [2, 5]]);
 
-        expect(it.next()).toEqual(EOF);
+        expect(it.next()).toEqual(Iterable.RET);
     }
-
 });
