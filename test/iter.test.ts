@@ -136,6 +136,10 @@ test('from', () => {
         expect(b.next()).toEqual(2);
     }
     {
+        let a = Iterable.fromRange(0, 10, 3).toArray();
+        expect(a).toEqual([0, 3, 6, 9]);
+    }
+    {
         let a = Iterable.fromArray([0, 1, 2, 3, 4]);
         expect(a.next()).toEqual(0);
         expect(a.next()).toEqual(1);
@@ -145,6 +149,10 @@ test('from', () => {
         expect(b.next()).toEqual(3);
         expect(b.next()).toEqual(4);
         expect(b.next()).toEqual(Iterable.RET);
+    }
+    {
+        let a = Iterable.fromGenerator(0, pre => pre + 1).take(5).toArray();
+        expect(a).toEqual([0, 1, 2, 3, 4]);
     }
 })
 

@@ -46,6 +46,25 @@ export class Iterable {
         return new c();
     }
 
+    static fromRange(from: number, to: number, step: number) {
+        let c = class extends Iterator {
+            cur = from;
+            next() {
+                if (this.cur >= to) return RET;
+                let r = this.cur;
+                this.cur += step;
+                return r;
+            }
+
+            clone(): Iterator {
+                let o = new c();
+                o.cur = this.cur;
+                return o;
+            }
+        }
+        return new c();
+    }
+
     static fromArray(ns: any[]): Iterator {
         let c = class extends Iterator {
             cur = 0;
