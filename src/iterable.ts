@@ -1,10 +1,10 @@
 // iterator values
-export const RET = Symbol('RET');
-export const CONTINUE = Symbol('CONTINUE');
-export const BREAK = Symbol('BREAK');
+const RET = Symbol('RET');
+const CONTINUE = Symbol('CONTINUE');
+const BREAK = Symbol('BREAK');
 
 //RET | CONTINUE | BREAK | any
-export type option_t = any
+type option_t = any
 
 export class Iterable {
     static RET: Symbol = RET;
@@ -401,41 +401,63 @@ class ProductIter extends Iterable {
         let valStk: any[] = [];
         let itabs = this.iterables;
         let cur: Iterator = null;
+        const stBT = 0;
+        const stIter = 1;
+        const stNext = 2;
+        const stValue = 3;
+        let state = stIter;
+        let idx = 0;
+        const len = itabs.length;
         return new class extends Stepper {
             step(): option_t | Iterator {
+                let item: any = null;
+                if (this._async !== SYNC) {
+                    item - this._async;
+                    this._async = ASYNC;
+                    state = stValue;
+                }
                 while (true) {
-                    let idx = itStk.length;
-                    if (idx == itabs.length) {
-                        cur = itStk.pop();
-                        let r = [...valStk];
-                        valStk.pop();
-                        return r;
-                    } else {
-                        if (cur == null) {
+                    switch (state) {
+                        case stIter:
+                            if (idx == len) {
+                                idx--;
+                                let r = [...valStk];
+                                console.log('getCur:', cur);
+                                valStk.pop();
+                                state = stNext;
+                                return r;
+                            }
                             cur = itabs[idx].getIter();
-                        } else if (this._async != SYNC) {
-                            (cur as Stepper).resolve(this._async);
-                            this._async = SYNC;
-                        }
-                        let item: Stepper | option_t = null;
-                        if (cur instanceof Stepper) {
-                            item = cur.step();
-                        } else {
-                            item = cur.next();
-                        }
-                        if (item == RET) {
-                            if (idx == 0) return RET;
-                            cur = itStk.pop();
-                            valStk.pop();
-                            continue;
-                        } else if (item instanceof Stepper) {
-                            this._async = ASYNC;
-                            return item;
-                        } else {
-                            valStk.push(item);
                             itStk.push(cur);
-                            cur = null;
-                        }
+                            console.log('stIter:', idx);
+                        case stNext:
+                            if (cur instanceof Stepper) {
+                                item = cur.step();
+                                if (item instanceof Stepper) {
+                                    return item;
+                                }
+                            } else {
+                                item = cur.next();
+                            }
+                            if (item == RET) {
+                                state = stBT;
+                                continue;
+                            }
+                        // state = stValue
+                        case stValue:
+                            valStk.push(item);
+                            state = stIter;
+                            idx++;
+                            continue;
+                        case stBT:
+                            if (idx == 0) return RET;
+                            idx--;
+                            cur = itStk.pop();
+                            console.log('getCur1111:', cur);
+                            valStk.pop();
+                            state = stNext;
+                        default:
+                            continue;
                     }
                 }
             }
