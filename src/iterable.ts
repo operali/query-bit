@@ -1,53 +1,107 @@
 // iterator values
 const RET = Symbol('RET');
-const CONTINUE = Symbol('CONTINUE');
+const IGNORE = Symbol('IGNORE');
 const BREAK = Symbol('BREAK');
+
 
 //RET | CONTINUE | BREAK | any
 type option_t = any
-
 export class Iterable {
     static RET: Symbol = RET;
-    static CONTINUE: Symbol = CONTINUE;
-    static BREAK: Symbol = BREAK;
 
-    static fromGenerator(first: any, next: (pre: any) => option_t): Iterator {
-        let c = class extends Iterator {
-            _cur: number = first;
-            next() {
-                let r = this._cur;
-                this._cur = next(this._cur);
-                return r;
-            }
-
-            clone(): Iterator {
-                let o = new c();
-                o._cur = this._cur;
-                return o;
+    static CUT: Iterable = new class extends Iterable {
+        getIter() {
+            return new class extends Iterator {
+                isPass = 0;
+                next() {
+                    if (this.isPass === 1) return BREAK;
+                    this.isPass++;
+                    return IGNORE;
+                }
             }
         }
-        return new c();
+    };
+
+    static fromFunction(fun: () => option_t): Iterable {
+        return new class extends Iterable {
+            getIter() {
+                return new class extends Iterator {
+                    next() {
+                        let r = fun();
+                        if (r === undefined) {
+                            return RET;
+                        }
+                        return r;
+                    }
+                }
+            }
+        };
+    };
+
+    static fromPred(fun: () => boolean): Iterable {
+        return new class extends Iterable {
+            getIter() {
+                return new class extends Iterator {
+                    next() {
+                        if (fun()) {
+                            return IGNORE;
+                        } else {
+                            return RET;
+                        }
+                    }
+                }
+            }
+        };
+    };
+
+    static fromAction(fun: () => any): Iterable {
+        return new class extends Iterable {
+            getIter() {
+                return new class extends Iterator {
+                    next() {
+                        fun();
+                        return IGNORE;
+                    }
+                }
+            }
+        };
+    };
+
+    public static fromGenerator(first: any, next: (pre: any) => option_t): Iterable {
+        return new class extends Iterable {
+            getIter() {
+                return new class extends Iterator {
+                    _cur: number = first;
+                    next() {
+                        let r = this._cur;
+                        this._cur = next(this._cur);
+                        return r;
+                    };
+                }
+            }
+        }
     }
 
-    static fromN(n: number): Iterator {
-        let c = class extends Iterator {
+    public static fromN(n: number): Iterator {
+        const c = class extends Iterator {
             cur = n;
             next(): any {
                 let r = this.cur++;
                 return r;
             }
-
             clone(): Iterator {
                 let o = new c();
                 o.cur = this.cur;
                 return o;
             }
         }
+
         return new c();
     }
 
-    static fromRange(from: number, to: number, step: number) {
-        let c = class extends Iterator {
+
+    public static fromRange(from: number, to: number, step: number) {
+        const c = class extends Iterator {
             cur = from;
             next() {
                 if (this.cur >= to) return RET;
@@ -65,11 +119,11 @@ export class Iterable {
         return new c();
     }
 
-    static fromArray(ns: any[]): Iterator {
+    public static fromArray(ns: any[]): Iterator {
         let c = class extends Iterator {
             cur = 0;
             next(): option_t {
-                if (this.cur == ns.length) {
+                if (this.cur === ns.length) {
                     return RET;
                 }
                 return ns[this.cur++];
@@ -84,11 +138,11 @@ export class Iterable {
         return new c();
     }
 
-    static sum(...its: Iterable[]) {
+    public static sum(...its: Iterable[]) {
         return new SUMIter(...its);
     }
 
-    static product(...its: Iterable[]) {
+    public static product(...its: Iterable[]) {
         return new ProductIter(...its);
     }
 
@@ -117,11 +171,11 @@ export class Iterable {
     uncons(): [any, Iterable] {
         let that = this;
         let r = that.getIter().uncons();
-        if (r == null) return null;
+        if (r === null) return null;
         let iterab = new class extends Iterable {
             getIter(): Iterator {
                 let r = that.getIter().uncons();
-                if (r == null) return new class extends Iterator {
+                if (r === null) return new class extends Iterator {
                     next(): option_t {
                         return RET;
                     }
@@ -182,8 +236,8 @@ export class Iterator {
             next(): option_t {
                 while (true) {
                     let r = this._curIter.next();
-                    if (r == RET) {
-                        if (this._iterStk.length == 0) return RET;
+                    if (r === RET) {
+                        if (this._iterStk.length === 0) return RET;
                         this._curIter = this._iterStk.pop();
                         continue;
                     } else if (r instanceof Iterator) {
@@ -206,7 +260,7 @@ export class Iterator {
         let r = [];
         while (true) {
             let item = this.next();
-            if (item == RET) return r;
+            if (item === RET) return r;
             r.push(item);
         }
     }
@@ -215,7 +269,7 @@ export class Iterator {
         let r = null;
         for (let i = -1; i < n; ++i) {
             r = this.next();
-            if (r == RET) return RET;
+            if (r === RET) return RET;
         }
         return r;
     }
@@ -226,7 +280,7 @@ export class Iterator {
             next() {
                 while (true) {
                     let item = it.next();
-                    if (item == RET) return RET;
+                    if (item === RET) return RET;
                     else if (filterF(item)) {
                         return item;
                     }
@@ -240,7 +294,7 @@ export class Iterator {
         return new class extends Iterator {
             next(): option_t {
                 let item = it.next();
-                if (item == RET) return RET;
+                if (item === RET) return RET;
                 return trans(item);
             }
         }
@@ -251,7 +305,7 @@ export class Iterator {
         let it = this;
         while (true) {
             let item = it.next();
-            if (item == RET) return r;
+            if (item === RET) return r;
             r = acc(r, item);
         }
     }
@@ -274,7 +328,7 @@ export class Iterator {
     uncons(): [any, Iterator] {
         let that = this;
         let item = that.next();
-        if (item == RET) return null;
+        if (item === RET) return null;
         return [item, that];
     }
 
@@ -283,9 +337,9 @@ export class Iterator {
         let count = 0;
         return new class extends Iterator {
             next() {
-                if (count == n) return RET;
+                if (count === n) return RET;
                 let r = that.next();
-                if (r == RET) return RET;
+                if (r === RET) return RET;
                 count++;
                 return r;
             }
@@ -296,7 +350,7 @@ export class Iterator {
         let it = this;
         for (let i = 0; i < n; ++i) {
             let r = it.next();
-            if (r == RET) return it;
+            if (r === RET) return it;
         }
         return it;
     }
@@ -306,7 +360,7 @@ export class Iterator {
         let c = 0;
         while (true) {
             let item = it.next();
-            if (item == RET) return c;
+            if (item === RET) return c;
             c++;
         }
     }
@@ -325,6 +379,15 @@ export class Iterator {
     }
 }
 
+const CUT = new class extends Iterable {
+    getIter() {
+        return new class extends Iterator {
+            next() {
+                return
+            }
+        }
+    }
+}
 
 // stepper states
 const SYNC = Symbol('SYN');
@@ -341,7 +404,7 @@ class Stepper extends Iterator {
                 stepStk.push(curStepper);
                 curStepper = opv;
             } else {
-                if (stepStk.length == 0) return opv;
+                if (stepStk.length === 0) return opv;
                 curStepper = stepStk.pop();
                 curStepper.resolve(opv);
             }
@@ -381,7 +444,7 @@ class SUMIter extends Iterable {
                 while (true) {
                     switch (state) {
                         case stIter:
-                            if (idx == len) return RET;
+                            if (idx === len) return RET;
                             let itab = itabs[idx];
                             cur = itab.getIter();
                         case stNext:
@@ -395,7 +458,7 @@ class SUMIter extends Iterable {
                                 item = cur.next();
                             }
                         case stValue:
-                            if (item == RET) {
+                            if (item === RET) {
                                 state = stIter;
                                 idx++;
                                 continue;
@@ -442,14 +505,7 @@ class ProductIter extends Iterable {
                 while (true) {
                     switch (state) {
                         case stIter:
-                            if (idx == len) {
-                                idx--;
-                                let r = [...valStk];
-                                valStk.pop();
-                                state = stNext;
-                                return r;
-                            }
-                            if (cur != null) {
+                            if (cur !== null) {
                                 itStk.push(cur);
                             }
                             cur = itabs[idx].getIter();
@@ -462,19 +518,27 @@ class ProductIter extends Iterable {
                             } else {
                                 item = cur.next();
                             }
-                            if (item == RET) {
+                            if (item === RET) {
                                 state = stBT;
                                 continue;
                             }
-                        // state = stValue
                         case stValue:
+                            if (item === BREAK) {
+                                return RET;
+                            }
                             valStk.push(item);
-                            // console.log('value push');
-                            state = stIter;
                             idx++;
+                            if (idx === len) {
+                                idx--;
+                                let r = valStk.filter(val => val !== IGNORE);
+                                valStk.pop();
+                                state = stNext;
+                                return r;
+                            }
+                            state = stIter;
                             continue;
                         case stBT:
-                            if (idx == 0) return RET;
+                            if (idx === 0) return RET;
                             idx--;
                             cur = itStk.pop();
                             valStk.pop();

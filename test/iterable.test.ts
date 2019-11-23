@@ -128,12 +128,12 @@ test('linq func', () => {
 
 test('from', () => {
     {
-        let a = Iterable.fromN(0);
-        expect(a.next()).toEqual(0);
-        expect(a.next()).toEqual(1);
-        let b = a.clone();
-        expect(a.next()).toEqual(2);
-        expect(b.next()).toEqual(2);
+        let from0 = Iterable.fromN(0);
+        expect(from0.next()).toEqual(0);
+        expect(from0.next()).toEqual(1);
+        let from2 = from0.clone();
+        expect(from0.next()).toEqual(2);
+        expect(from2.next()).toEqual(2);
     }
     {
         let a = Iterable.fromRange(0, 10, 3).toArray();
@@ -151,8 +151,13 @@ test('from', () => {
         expect(b.next()).toEqual(Iterable.RET);
     }
     {
-        let a = Iterable.fromGenerator(0, pre => pre + 1).take(5).toArray();
+        let a = Iterable.fromGenerator(0, pre => pre + 1).take(5).getIter().toArray();
         expect(a).toEqual([0, 1, 2, 3, 4]);
+    }
+    {
+        let i = 0;
+        let n = () => i++;
+        expect(Iterable.fromFunction(n).take(3).getIter().toArray()).toEqual([0, 1, 2]);
     }
 })
 
@@ -259,3 +264,39 @@ test('product', () => {
         expect(it.next()).toEqual(Iterable.RET);
     }
 });
+
+test('action', () => {
+    {
+        let action = Iterable.fromAction(() => console.log('hello'));
+        let from3 = Iterable.fromN(3).toIterable();
+        expect(Iterable.product(from3, action).take(3).getIter().toArray()).toEqual([[3], [3], [3]]);
+    }
+    {
+        let action = Iterable.fromAction(() => console.log('hello'));
+        let from3 = Iterable.fromN(3);
+        expect(Iterable.product(action, from3.toIterable()).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
+    }
+});
+
+test('cut', () => {
+    {
+        let action = Iterable.fromAction(() => console.log('hello'));
+        let from3 = Iterable.fromN(3).toIterable();
+        expect(Iterable.product(from3, action, Iterable.CUT).take(3).getIter().toArray()).toEqual([[3]]);
+    }
+})
+
+test('fromPred', () => {
+    {
+        let i = 0;
+        let lessThan3 = Iterable.fromPred(() => {
+            if (i++ < 3) {
+                return true;
+            }
+            return false;
+        });
+
+        let from3 = Iterable.fromN(3).toIterable();
+        expect(Iterable.product(from3, lessThan3).take(3).getIter().toArray()).toEqual([[3], [3], [3]]);
+    }
+})
