@@ -379,16 +379,6 @@ export class Iterator {
     }
 }
 
-const CUT = new class extends Iterable {
-    getIter() {
-        return new class extends Iterator {
-            next() {
-                return
-            }
-        }
-    }
-}
-
 // stepper states
 const SYNC = Symbol('SYN');
 const ASYNC = Symbol('ASYNC');
