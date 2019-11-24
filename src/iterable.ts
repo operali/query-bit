@@ -1,6 +1,6 @@
 // iterator values
 const RET = Symbol('RET');
-const IGNORE = Symbol('IGNORE');
+const CONTINUE = Symbol('IGNORE');
 const BREAK = Symbol('BREAK');
 
 
@@ -16,7 +16,7 @@ export class Iterable {
                 next() {
                     if (this.isPass === 1) return BREAK;
                     this.isPass++;
-                    return IGNORE;
+                    return CONTINUE;
                 }
             }
         }
@@ -27,11 +27,7 @@ export class Iterable {
             getIter() {
                 return new class extends Iterator {
                     next() {
-                        let r = fun();
-                        if (r === undefined) {
-                            return RET;
-                        }
-                        return r;
+                        return fun();
                     }
                 }
             }
@@ -42,12 +38,17 @@ export class Iterable {
         return new class extends Iterable {
             getIter() {
                 return new class extends Iterator {
+                    _server: boolean = false;
                     next() {
-                        if (fun()) {
-                            return IGNORE;
-                        } else {
+                        if (!this._server) {
+                            this._server = true;
+                            let r = fun();
+                            if (r) {
+                                return CONTINUE;
+                            }
                             return RET;
                         }
+                        return RET;
                     }
                 }
             }
@@ -58,9 +59,14 @@ export class Iterable {
         return new class extends Iterable {
             getIter() {
                 return new class extends Iterator {
+                    _server: boolean = false;
                     next() {
-                        fun();
-                        return IGNORE;
+                        if (!this._server) {
+                            this._server = true;
+                            fun();
+                            return CONTINUE;
+                        }
+                        return RET;
                     }
                 }
             }
@@ -520,7 +526,7 @@ class ProductIter extends Iterable {
                             idx++;
                             if (idx === len) {
                                 idx--;
-                                let r = valStk.filter(val => val !== IGNORE);
+                                let r = valStk.filter(val => val !== CONTINUE);
                                 valStk.pop();
                                 state = stNext;
                                 return r;

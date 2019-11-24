@@ -267,14 +267,18 @@ test('product', () => {
 
 test('action', () => {
     {
-        let action = Iterable.fromAction(() => console.log('hello'));
+        let count = 0;
+        let action = Iterable.fromAction(() => count++);
         let from3 = Iterable.fromN(3).toIterable();
-        expect(Iterable.product(from3, action).take(3).getIter().toArray()).toEqual([[3], [3], [3]]);
+        expect(Iterable.product(from3, action).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
+        expect(count).toBe(3);
     }
     {
-        let action = Iterable.fromAction(() => console.log('hello'));
-        let from3 = Iterable.fromN(3);
-        expect(Iterable.product(action, from3.toIterable()).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
+        let count = 0;
+        let action = Iterable.fromAction(() => count++);
+        let from3 = Iterable.fromN(3).toIterable();
+        expect(Iterable.product(action, from3).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
+        expect(count).toBe(1);
     }
 });
 
@@ -297,6 +301,6 @@ test('fromPred', () => {
         });
 
         let from3 = Iterable.fromN(3).toIterable();
-        expect(Iterable.product(from3, lessThan3).take(3).getIter().toArray()).toEqual([[3], [3], [3]]);
+        expect(Iterable.product(from3, lessThan3).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
     }
 })
