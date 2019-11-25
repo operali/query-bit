@@ -334,7 +334,9 @@ test('cut', () => {
 test('fromPred', () => {
     {
         let i = 0;
-        let lessThan3 = Iterable.fromPred(() => {
+        let vals = [];
+        let lessThan3 = Iterable.fromPred((ctx) => {
+            vals.push(ctx);
             if (i++ < 3) {
                 return true;
             }
@@ -342,6 +344,7 @@ test('fromPred', () => {
         });
 
         let from3 = Iterable.fromN(3).toIterable();
-        expect(Iterable.product(from3, lessThan3).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
+        expect(Iterable.product(from3, lessThan3).getIter().take(3).toArray()).toEqual([[3], [4], [5]]);
+        expect(vals).toEqual([[3], [4], [5]]);
     }
 })

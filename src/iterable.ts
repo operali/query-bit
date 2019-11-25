@@ -50,7 +50,6 @@ export class Iterable {
                 return new class extends Iterator {
                     _server: boolean = false;
                     next(ctx?: context_t) {
-                        console.log('from action next', ctx, fun);
                         if (!this._server) {
                             this._server = true;
                             fun(ctx);
@@ -381,7 +380,7 @@ const ASYNC = Symbol('ASYNC');
 class Stepper extends Iterator {
     _async: any = SYNC;
 
-    next(ctx: any) {
+    next(ctx?: any) {
         let stepStk: Stepper[] = [];
         let curStepper: Stepper = this;
         while (true) {
@@ -441,7 +440,6 @@ class SUMIter extends Iterable {
                                     return item;
                                 }
                             } else {
-                                console.log('sum next realIdx:', realIdx);
                                 item = cur.next(realIdx);
                             }
                         case stValue:
