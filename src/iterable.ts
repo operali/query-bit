@@ -129,11 +129,11 @@ export class Iterable {
     }
 
 
-    public static fromRange(from: number, to: number, step: number) {
+    public static fromRange(from: number, to: number, step: number = 1) {
         const c = class extends Iterator {
             cur = from;
             next() {
-                if (this.cur > to) return RET;
+                if (this.cur >= to) return RET;
                 let r = this.cur;
                 this.cur += step;
                 return r;

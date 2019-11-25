@@ -341,7 +341,20 @@ test('fromPred', () => {
 
 
 test('transform', () => {
-    let itab = Iterable.fromRange(0, 6, 2).toIterable();
-    let it1 = itab.transform(v => { console.log(v); return v+1; });
-    expect(it1.getIter().toArray()).toEqual([1, 3, 5, 7]);
+    {
+        let itab = Iterable.fromRange(0, 6, 2).toIterable();
+        let it1 = itab.transform(v => v + 1);
+        expect(it1.getIter().toArray()).toEqual([1, 3, 5]);
+    }
+
+    {
+        let itab1 = Iterable.fromRange(0, 2).toIterable();
+        let itab2 = Iterable.fromRange(2, 4).toIterable();
+        let it1 = Iterable.product(itab1, itab2).transform((tab: number[]) => {
+            return tab.reduce((acc, item) => {
+                return item + acc;
+            }, 0);
+        });
+        expect(it1.getIter().toArray()).toEqual([2, 3, 3, 4]);
+    }
 })
