@@ -154,11 +154,6 @@ test('from', () => {
         let a = Iterable.fromGenerator(0, pre => pre + 1).take(5).getIter().toArray();
         expect(a).toEqual([0, 1, 2, 3, 4]);
     }
-    {
-        let i = 0;
-        let n = () => i++;
-        expect(Iterable.fromFunction(n).take(3).getIter().toArray()).toEqual([0, 1, 2]);
-    }
 })
 
 let arr = [[1, 2], [3, 4], [5, [6, [7]]]];
@@ -273,12 +268,58 @@ test('action', () => {
         expect(Iterable.product(from3, action).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
         expect(count).toBe(3);
     }
+})
+test('action1', () => {
+
     {
         let count = 0;
         let action = Iterable.fromAction(() => count++);
         let from3 = Iterable.fromN(3).toIterable();
         expect(Iterable.product(action, from3).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
         expect(count).toBe(1);
+    }
+})
+
+test('action2', () => {
+    // context 参数
+    {
+        let vals = [];
+        let action = Iterable.fromAction((ctx) => vals.push(ctx));
+        let from3 = Iterable.fromN(3).toIterable();
+        expect(Iterable.product(action, from3).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
+        expect(vals).toStrictEqual([[]]);
+    }
+    {
+        let vals = [];
+        let action = Iterable.fromAction((ctx) => vals.push(ctx));
+        let from3 = Iterable.fromN(3).toIterable();
+        expect(Iterable.product(from3, action).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
+        expect(vals).toStrictEqual([[3], [4], [5]]);
+    }
+    {
+        let vals = [];
+        let action = Iterable.fromAction((ctx) => vals.push(ctx));
+        let from3 = Iterable.fromN(3).toIterable();
+        expect(Iterable.product(from3.take(2), from3.take(2), action).take(3).getIter().toArray()).toEqual([[3, 3], [3, 4], [4, 3]]);
+        expect(vals).toStrictEqual([[3, 3], [3, 4], [4, 3]]);
+    }
+    {
+        let vals = [];
+        let action = Iterable.fromAction((ctx) => vals.push(ctx));
+        let from3 = Iterable.fromN(3).toIterable();
+        expect(Iterable.product(from3.take(2), action, from3.take(2)).take(3).getIter().toArray()).toEqual([[3, 3], [3, 4], [4, 3]]);
+        expect(vals).toStrictEqual([[3], [4]]);
+    }
+});
+
+test('action3', () => {
+    // context 参数
+    {
+        let vals = [];
+        let action = Iterable.fromAction((ctx) => vals.push(ctx));
+        let from3 = Iterable.fromN(3).toIterable();
+        expect(Iterable.sum(from3.take(3), action).take(6).getIter().toArray()).toEqual([[0, 3], [0, 4], [0, 5]]);
+        expect(vals).toStrictEqual([1]);
     }
 });
 

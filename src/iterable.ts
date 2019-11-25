@@ -6,6 +6,7 @@ const BREAK = Symbol('BREAK');
 
 //RET | CONTINUE | BREAK | any
 type option_t = any
+type context_t = any
 export class Iterable {
     static RET: Symbol = RET;
 
@@ -22,27 +23,15 @@ export class Iterable {
         }
     };
 
-    static fromFunction(fun: () => option_t): Iterable {
-        return new class extends Iterable {
-            getIter() {
-                return new class extends Iterator {
-                    next() {
-                        return fun();
-                    }
-                }
-            }
-        };
-    };
-
-    static fromPred(fun: () => boolean): Iterable {
+    static fromPred(fun: (ctx?: context_t) => boolean): Iterable {
         return new class extends Iterable {
             getIter() {
                 return new class extends Iterator {
                     _server: boolean = false;
-                    next() {
+                    next(ctx?: context_t) {
                         if (!this._server) {
                             this._server = true;
-                            let r = fun();
+                            let r = fun(ctx);
                             if (r) {
                                 return CONTINUE;
                             }
@@ -55,15 +44,16 @@ export class Iterable {
         };
     };
 
-    static fromAction(fun: () => any): Iterable {
+    static fromAction(fun: (ctx?: context_t) => any): Iterable {
         return new class extends Iterable {
             getIter() {
                 return new class extends Iterator {
                     _server: boolean = false;
-                    next() {
+                    next(ctx?: context_t) {
+                        console.log('from action next', ctx, fun);
                         if (!this._server) {
                             this._server = true;
-                            fun();
+                            fun(ctx);
                             return CONTINUE;
                         }
                         return RET;
@@ -152,7 +142,7 @@ export class Iterable {
         return new ProductIter(...its);
     }
 
-    getIter(): Iterator {
+    getIter(_ctx?: context_t): Iterator {
         throw "no implement"
     }
 
@@ -258,7 +248,7 @@ export class Iterator {
         }
     }
 
-    next(): option_t {
+    next(ctx?: context_t): option_t {
         throw "no implement"
     }
 
@@ -391,11 +381,11 @@ const ASYNC = Symbol('ASYNC');
 class Stepper extends Iterator {
     _async: any = SYNC;
 
-    next() {
+    next(ctx: any) {
         let stepStk: Stepper[] = [];
         let curStepper: Stepper = this;
         while (true) {
-            let opv = curStepper.step();
+            let opv = curStepper.step(ctx);
             if (opv instanceof Stepper) {
                 stepStk.push(curStepper);
                 curStepper = opv;
@@ -407,7 +397,7 @@ class Stepper extends Iterator {
         }
     }
 
-    step(): Stepper | Iterator | option_t {
+    step(ctx: any): Stepper | Iterator | option_t {
         throw "no implement";
     }
 
@@ -425,7 +415,6 @@ class SUMIter extends Iterable {
     }
 
     getIter(): Iterator {
-        const that = this;
         let itabs = this.iterables;
         let cur: Iterator = null;
         const stIter = 1;
@@ -433,6 +422,7 @@ class SUMIter extends Iterable {
         const stValue = 3;
         let state = stIter;
         let idx = 0;
+        let realIdx = 0;
         let len = itabs.length;
         return new class extends Stepper {
             step() {
@@ -445,22 +435,29 @@ class SUMIter extends Iterable {
                             cur = itab.getIter();
                         case stNext:
                             if (cur instanceof Stepper) {
-                                item = cur.step();
+                                item = cur.step(realIdx);
                                 if (item instanceof Stepper) {
                                     state = stValue;
                                     return item;
                                 }
                             } else {
-                                item = cur.next();
+                                console.log('sum next realIdx:', realIdx);
+                                item = cur.next(realIdx);
                             }
                         case stValue:
                             if (item === RET) {
                                 state = stIter;
                                 idx++;
+                                realIdx++;
                                 continue;
+                            } else if (item == CONTINUE || item == BREAK) {
+                                state = stIter;
+                                idx++;
+                                continue;
+                                // realIdx++;
                             }
                             state = stNext;
-                            return [idx, item];
+                            return [realIdx, item];
                         default: ;
                     }
                 }
@@ -507,12 +504,12 @@ class ProductIter extends Iterable {
                             cur = itabs[idx].getIter();
                         case stNext:
                             if (cur instanceof Stepper) {
-                                item = cur.step();
+                                item = cur.step(valStk.filter(val => val != CONTINUE || val != BREAK));
                                 if (item instanceof Stepper) {
                                     return item;
                                 }
                             } else {
-                                item = cur.next();
+                                item = cur.next(valStk.filter(val => val != CONTINUE || val != BREAK));
                             }
                             if (item === RET) {
                                 state = stBT;
