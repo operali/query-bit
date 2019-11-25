@@ -346,7 +346,12 @@ test('transform', () => {
         let it1 = itab.transform(v => v + 1);
         expect(it1.getIter().toArray()).toEqual([1, 3, 5]);
     }
-
+    {
+        let itab1 = Iterable.fromRange(0, 2).toIterable();
+        let itab2 = Iterable.fromRange(2, 4).toIterable();
+        let it1 = Iterable.sum(itab1, itab2).transform((tab: number[]) =>tab[1]);
+        expect(it1.getIter().toArray()).toEqual([0,1,2,3]);
+    }
     {
         let itab1 = Iterable.fromRange(0, 2).toIterable();
         let itab2 = Iterable.fromRange(2, 4).toIterable();
