@@ -8,7 +8,7 @@
     "dist": "ts-node run_script distribute",
     "clean": "rimraf build dist",
     "lint": "eslint src --ext ts",
-    "test": "jest"
+    "test": "jest --coverage"
   },
   "author": "operali",
   "license": "MIT",
