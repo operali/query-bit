@@ -71,6 +71,9 @@ export class Iterable {
                     return new class extends Stepper {
                         step() {
                             let v = (iter as Stepper).step()
+                            if (v === RET) return RET;
+                            if (v === CONTINUE) return CONTINUE;
+                            if (v === BREAK) return BREAK;
                             if (v instanceof Stepper) {
                                 return v;
                             }
@@ -79,8 +82,11 @@ export class Iterable {
                     }
                 } else {
                     return new class extends Iterator {
-                        step() {
+                        next() {
                             let v = iter.next();
+                            if (v === RET) return RET;
+                            if (v === CONTINUE) return CONTINUE;
+                            if (v === BREAK) return BREAK;
                             return trans(v);
                         }
                     }
@@ -127,7 +133,7 @@ export class Iterable {
         const c = class extends Iterator {
             cur = from;
             next() {
-                if (this.cur >= to) return RET;
+                if (this.cur > to) return RET;
                 let r = this.cur;
                 this.cur += step;
                 return r;
@@ -530,12 +536,12 @@ class ProductIter extends Iterable {
                             cur = itabs[idx].getIter();
                         case stNext:
                             if (cur instanceof Stepper) {
-                                item = cur.step(valStk.filter(val => val != CONTINUE || val != BREAK));
+                                item = cur.step();
                                 if (item instanceof Stepper) {
                                     return item;
                                 }
                             } else {
-                                item = cur.next(valStk.filter(val => val != CONTINUE || val != BREAK));
+                                item = cur.next();
                             }
                             if (item === RET) {
                                 state = stBT;

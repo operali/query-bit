@@ -338,3 +338,10 @@ test('fromPred', () => {
         expect(Iterable.product(from3, lessThan3).getIter().take(3).toArray()).toEqual([[3], [4], [5]]);
     }
 })
+
+
+test('transform', () => {
+    let itab = Iterable.fromRange(0, 6, 2).toIterable();
+    let it1 = itab.transform(v => { console.log(v); return v+1; });
+    expect(it1.getIter().toArray()).toEqual([1, 3, 5, 7]);
+})
