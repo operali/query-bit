@@ -284,31 +284,24 @@ test('action2', () => {
     // context 参数
     {
         let vals = [];
-        let action = Iterable.fromAction((ctx) => vals.push(ctx));
+        let action = Iterable.fromAction(() => vals.push(1));
         let from3 = Iterable.fromN(3).toIterable();
         expect(Iterable.product(action, from3).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
-        expect(vals).toStrictEqual([[]]);
+        expect(vals).toStrictEqual([1]);
     }
     {
         let vals = [];
-        let action = Iterable.fromAction((ctx) => vals.push(ctx));
+        let action = Iterable.fromAction(() => vals.push(1));
         let from3 = Iterable.fromN(3).toIterable();
         expect(Iterable.product(from3, action).take(3).getIter().toArray()).toEqual([[3], [4], [5]]);
-        expect(vals).toStrictEqual([[3], [4], [5]]);
+        expect(vals).toStrictEqual([1, 1, 1]);
     }
     {
         let vals = [];
-        let action = Iterable.fromAction((ctx) => vals.push(ctx));
-        let from3 = Iterable.fromN(3).toIterable();
-        expect(Iterable.product(from3.take(2), from3.take(2), action).take(3).getIter().toArray()).toEqual([[3, 3], [3, 4], [4, 3]]);
-        expect(vals).toStrictEqual([[3, 3], [3, 4], [4, 3]]);
-    }
-    {
-        let vals = [];
-        let action = Iterable.fromAction((ctx) => vals.push(ctx));
+        let action = Iterable.fromAction(() => vals.push(1));
         let from3 = Iterable.fromN(3).toIterable();
         expect(Iterable.product(from3.take(2), action, from3.take(2)).take(3).getIter().toArray()).toEqual([[3, 3], [3, 4], [4, 3]]);
-        expect(vals).toStrictEqual([[3], [4]]);
+        expect(vals).toStrictEqual([1, 1]);
     }
 });
 
@@ -316,7 +309,7 @@ test('action3', () => {
     // context 参数
     {
         let vals = [];
-        let action = Iterable.fromAction((ctx) => vals.push(ctx));
+        let action = Iterable.fromAction(() => vals.push(1));
         let from3 = Iterable.fromN(3).toIterable();
         expect(Iterable.sum(from3.take(3), action).take(6).getIter().toArray()).toEqual([[0, 3], [0, 4], [0, 5]]);
         expect(vals).toStrictEqual([1]);
@@ -334,9 +327,7 @@ test('cut', () => {
 test('fromPred', () => {
     {
         let i = 0;
-        let vals = [];
-        let lessThan3 = Iterable.fromPred((ctx) => {
-            vals.push(ctx);
+        let lessThan3 = Iterable.fromPred(() => {
             if (i++ < 3) {
                 return true;
             }
@@ -345,6 +336,5 @@ test('fromPred', () => {
 
         let from3 = Iterable.fromN(3).toIterable();
         expect(Iterable.product(from3, lessThan3).getIter().take(3).toArray()).toEqual([[3], [4], [5]]);
-        expect(vals).toEqual([[3], [4], [5]]);
     }
 })

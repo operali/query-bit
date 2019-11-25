@@ -23,15 +23,15 @@ export class Iterable {
         }
     };
 
-    static fromPred(fun: (ctx?: context_t) => boolean): Iterable {
+    static fromPred(fun: () => boolean): Iterable {
         return new class extends Iterable {
             getIter() {
                 return new class extends Iterator {
                     _server: boolean = false;
-                    next(ctx?: context_t) {
+                    next() {
                         if (!this._server) {
                             this._server = true;
-                            let r = fun(ctx);
+                            let r = fun();
                             if (r) {
                                 return CONTINUE;
                             }
@@ -44,15 +44,15 @@ export class Iterable {
         };
     };
 
-    static fromAction(fun: (ctx?: context_t) => any): Iterable {
+    static fromAction(fun: () => any): Iterable {
         return new class extends Iterable {
             getIter() {
                 return new class extends Iterator {
                     _server: boolean = false;
-                    next(ctx?: context_t) {
+                    next() {
                         if (!this._server) {
                             this._server = true;
-                            fun(ctx);
+                            fun();
                             return CONTINUE;
                         }
                         return RET;
@@ -61,6 +61,34 @@ export class Iterable {
             }
         };
     };
+
+    transform(trans: (val: any) => any): Iterable {
+        let that = this;
+        return new class extends Iterable {
+            getIter() {
+                let iter = that.getIter();
+                if (iter instanceof Stepper) {
+                    return new class extends Stepper {
+                        step() {
+                            let v = (iter as Stepper).step()
+                            if (v instanceof Stepper) {
+                                return v;
+                            }
+                            return trans(v);
+                        }
+                    }
+                } else {
+                    return new class extends Iterator {
+                        step() {
+                            let v = iter.next();
+                            return trans(v);
+                        }
+                    }
+                }
+
+            }
+        }
+    }
 
     public static fromGenerator(first: any, next: (pre: any) => option_t): Iterable {
         return new class extends Iterable {
@@ -247,7 +275,7 @@ export class Iterator {
         }
     }
 
-    next(ctx?: context_t): option_t {
+    next(): option_t {
         throw "no implement"
     }
 
@@ -380,11 +408,11 @@ const ASYNC = Symbol('ASYNC');
 class Stepper extends Iterator {
     _async: any = SYNC;
 
-    next(ctx?: any) {
+    next() {
         let stepStk: Stepper[] = [];
         let curStepper: Stepper = this;
         while (true) {
-            let opv = curStepper.step(ctx);
+            let opv = curStepper.step();
             if (opv instanceof Stepper) {
                 stepStk.push(curStepper);
                 curStepper = opv;
@@ -396,7 +424,7 @@ class Stepper extends Iterator {
         }
     }
 
-    step(ctx: any): Stepper | Iterator | option_t {
+    step(): Stepper | Iterator | option_t {
         throw "no implement";
     }
 
@@ -434,13 +462,13 @@ class SUMIter extends Iterable {
                             cur = itab.getIter();
                         case stNext:
                             if (cur instanceof Stepper) {
-                                item = cur.step(realIdx);
+                                item = cur.step();
                                 if (item instanceof Stepper) {
                                     state = stValue;
                                     return item;
                                 }
                             } else {
-                                item = cur.next(realIdx);
+                                item = cur.next();
                             }
                         case stValue:
                             if (item === RET) {
@@ -451,8 +479,8 @@ class SUMIter extends Iterable {
                             } else if (item == CONTINUE || item == BREAK) {
                                 state = stIter;
                                 idx++;
-                                continue;
                                 // realIdx++;
+                                continue;
                             }
                             state = stNext;
                             return [realIdx, item];
