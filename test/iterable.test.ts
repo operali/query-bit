@@ -349,8 +349,8 @@ test('transform', () => {
     {
         let itab1 = Iterable.fromRange(0, 2).toIterable();
         let itab2 = Iterable.fromRange(2, 4).toIterable();
-        let it1 = Iterable.sum(itab1, itab2).transform((tab: number[]) =>tab[1]);
-        expect(it1.getIter().toArray()).toEqual([0,1,2,3]);
+        let it1 = Iterable.sum(itab1, itab2).transform((tab: number[]) => tab[1]);
+        expect(it1.getIter().toArray()).toEqual([0, 1, 2, 3]);
     }
     {
         let itab1 = Iterable.fromRange(0, 2).toIterable();
@@ -361,5 +361,31 @@ test('transform', () => {
             }, 0);
         });
         expect(it1.getIter().toArray()).toEqual([2, 3, 3, 4]);
+    }
+    // test of CUT, ACTION, predict
+    {
+        let itab1 = Iterable.fromRange(0, 2).toIterable();
+        let itab2 = Iterable.fromRange(2, 4).toIterable();
+        {
+            let it1 = Iterable.sum(itab1, itab2, Iterable.CUT).transform((tab: number[]) => tab[1]);
+            expect(it1.getIter().toArray()).toEqual([0, 1, 2, 3]);
+        }
+        {
+            let it1 = Iterable.sum(itab1, Iterable.CUT, itab2).transform((tab: number[]) => tab[1]);
+            expect(it1.getIter().toArray()).toEqual([0, 1, 2, 3]);
+        }
+        {
+            let it1 = Iterable.sum(Iterable.CUT, itab1, itab2).transform((tab: number[]) => tab[1]);
+            expect(it1.getIter().toArray()).toEqual([0, 1, 2, 3]);
+        }
+        {
+            let it1 = Iterable.sum(Iterable.fromAction(() => console.log('start')), itab1, Iterable.fromAction(() => console.log('in mid')), itab2, Iterable.fromAction(() => console.log('end'))).transform((tab: number[]) => tab[1]);
+            expect(it1.getIter().toArray()).toEqual([0, 1, 2, 3]);
+        }
+
+        {
+            let it1 = Iterable.sum(Iterable.fromAction(() => true), itab1, itab2).transform((tab: number[]) => tab[1]);
+            expect(it1.getIter().toArray()).toEqual([0, 1, 2, 3]);
+        }
     }
 })
