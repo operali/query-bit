@@ -389,3 +389,14 @@ test('transform', () => {
         }
     }
 })
+
+test('SUCC/FAIL', () => {
+    let t = Iterable.product(Iterable.fromN(0).toIterable().take(5), Iterable.SUCC).transform(arr => arr[0]);
+    expect(t.getIter().toArray()).toEqual([0, 1, 2, 3, 4]);
+    {
+        let t = Iterable.product(Iterable.fromN(0).toIterable().take(5), Iterable.FAIL);
+        expect(t.getIter().next()).toStrictEqual(Iterable.RET);
+    }
+})
+
+

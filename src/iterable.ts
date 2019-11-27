@@ -1,36 +1,60 @@
 // iterator values
 const RET = Symbol('RET');
-const CONTINUE = Symbol('IGNORE');
+const CONTINUE = Symbol('CONTINUE');
 const BREAK = Symbol('BREAK');
 
 
 //RET | CONTINUE | BREAK | any
 type option_t = any
-type context_t = any
 export class Iterable {
+    static NOTHING: symbol = Symbol('NOTHING');
     static RET: Symbol = RET;
-
+    static CONTINUE = CONTINUE;
+    static BREAK = BREAK;
     static CUT: Iterable = new class extends Iterable {
         getIter() {
             return new class extends Iterator {
-                isPass = 0;
+                _isDone = 0;
                 next() {
-                    if (this.isPass === 1) return BREAK;
-                    this.isPass++;
+                    if (this._isDone === 1) return BREAK;
+                    this._isDone++;
                     return CONTINUE;
                 }
             }
         }
     };
 
+    static FAIL: Iterable = new class extends Iterable {
+        getIter() {
+            return new class extends Iterator {
+                next() {
+                    return RET;
+                }
+            }
+        }
+    }
+
+    static SUCC: Iterable = new class extends Iterable {
+        getIter() {
+            return new class extends Iterator {
+                _isDone = false;
+                next() {
+                    if (this._isDone) return RET;
+                    this._isDone = true;
+                    return CONTINUE;
+                }
+            }
+        }
+    }
+
     static fromPred(fun: () => boolean): Iterable {
         return new class extends Iterable {
             getIter() {
                 return new class extends Iterator {
-                    _server: boolean = false;
+                    _isDone: boolean = false;
                     next() {
-                        if (!this._server) {
-                            this._server = true;
+                        if (!this._isDone) {
+                            this._isDone = true;
                             let r = fun();
                             if (r) {
                                 return CONTINUE;
@@ -48,10 +72,10 @@ export class Iterable {
         return new class extends Iterable {
             getIter() {
                 return new class extends Iterator {
-                    _server: boolean = false;
+                    _isDone: boolean = false;
                     next() {
-                        if (!this._server) {
-                            this._server = true;
+                        if (!this._isDone) {
+                            this._isDone = true;
                             fun();
                             return CONTINUE;
                         }
@@ -175,8 +199,8 @@ export class Iterable {
         return new ProductIter(...its);
     }
 
-    getIter(_ctx?: context_t): Iterator {
-        throw "no implement"
+    getIter(): Iterator {
+        throw "no implement getIter"
     }
 
     flatten(): Iterable {
@@ -254,6 +278,90 @@ export class Iterable {
             }
         };
     }
+
+    // I?
+    maybe(): Iterable {
+        return Iterable.sum(this, Iterable.SUCC).transform(n => {
+            let idx = n[0];
+            let val = n[1];
+            if (idx == 1) return Iterable.NOTHING;
+            else return val;
+        })
+    }
+
+    // I(N)
+    repeat(n: number): Iterable {
+        if (n == 0) throw 'cannot repeat 0 time';
+        let iters: Iterable[] = [];
+        for (let i = 0; i < n; ++i) {
+            iters.push(this);
+        }
+        return Iterable.product(...iters);
+    }
+
+    not(): Iterable {
+        return Iterable.fromPred(() => {
+            let iter = this.getIter();
+            let r = iter.next();
+            if (r === RET) return true;
+            return false;
+        })
+    }
+
+    // I*
+    many(): Iterable {
+        let manyIter = new SUMIter();
+        let rightRecIter = new ProductIter();
+        rightRecIter.iterables.push(this);
+        rightRecIter.iterables.push(manyIter);
+        rightRecIter.iterables.push(Iterable.CUT);
+        let rightRecIter1 = rightRecIter.transform(n => {
+            let val = n[0];
+            let otherVals = n[1];
+            return [val, ...otherVals];
+        });
+        manyIter.iterables.push(rightRecIter1);
+        manyIter.iterables.push(Iterable.SUCC);
+        return manyIter.transform(n => {
+            let idx = n[0];
+            let val = n[1];
+            if (idx === 0) return val;
+            return [];
+        });
+    }
+
+    // I+
+    more(): Iterable {
+        let r = new ProductIter();
+        r.iterables.push(this);
+        r.iterables.push(this.many());
+        return r.transform(n => {
+            let first = n[0];
+            let others = n[1];
+            return [first, ...others];
+        })
+    }
+
+    // (I, (e, I)*)
+    separatedBy(separator: Iterable): Iterable {
+        let r = new ProductIter();
+        r.iterables.push(this); // first
+
+        let followItem = new SUMIter();
+        followItem.iterables.push(separator);
+        followItem.iterables.push(this);
+        followItem.transform(sItem => {
+            return sItem[1];
+        });
+        let follows = followItem.many();
+        r.iterables.push(follows);
+        return r.maybe().transform(item => {
+            if (item === Iterable.NOTHING) {
+                return [];
+            }
+            return item;
+        });
+    }
 }
 
 export class Iterator {
@@ -282,7 +390,7 @@ export class Iterator {
     }
 
     next(): option_t {
-        throw "no implement"
+        throw "no implement next"
     }
 
     toArray(): any[] {
@@ -395,7 +503,7 @@ export class Iterator {
     }
 
     clone(): Iterator {
-        throw "no implement";
+        throw "no implement clone";
     }
 
     toIterable() {
@@ -411,7 +519,7 @@ export class Iterator {
 // stepper states
 const SYNC = Symbol('SYN');
 const ASYNC = Symbol('ASYNC');
-class Stepper extends Iterator {
+export class Stepper extends Iterator {
     _async: any = SYNC;
 
     next() {
@@ -482,7 +590,7 @@ class SUMIter extends Iterable {
                                 idx++;
                                 realIdx++;
                                 continue;
-                            } else if (item == CONTINUE || item == BREAK) {
+                            } else if (item === CONTINUE || item === BREAK) {
                                 state = stIter;
                                 idx++;
                                 // realIdx++;
@@ -490,7 +598,8 @@ class SUMIter extends Iterable {
                             }
                             state = stNext;
                             return [realIdx, item];
-                        default: ;
+                        default:
+                            ;
                     }
                 }
             }
