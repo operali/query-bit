@@ -236,7 +236,7 @@ export class Iterable {
                 else return r[1];
             }
         }
-        return [r[0], iterab]
+        return [r[0], iterab];
     }
 
     map(trans: (item: any) => any): Iterable {
@@ -279,9 +279,24 @@ export class Iterable {
         };
     }
 
+    static epsilon(val: any): Iterable {
+        return new class extends Iterable {
+            getIter() {
+                return new class extends Iterator {
+                    _isDone: boolean = false;
+                    next() {
+                        if (this._isDone) return RET;
+                        this._isDone = true;
+                        return val;
+                    }
+                }
+            }
+        };
+    }
+
     // I?
     maybe(): Iterable {
-        return Iterable.sum(this, Iterable.SUCC).transform(n => {
+        return Iterable.sum(this, Iterable.epsilon(1)).transform(n => {
             let idx = n[0];
             let val = n[1];
             if (idx == 1) return Iterable.NOTHING;
@@ -305,7 +320,7 @@ export class Iterable {
             let r = iter.next();
             if (r === RET) return true;
             return false;
-        })
+        });
     }
 
     // I*
