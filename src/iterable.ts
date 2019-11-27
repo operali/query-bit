@@ -1,23 +1,23 @@
 
 const magic = "---QUERY-BIT";
 // iterator values
-const EOF = ['RET' + magic];
-const CONTINUE = ['CONTINUE' + magic];
-const BREAK = ['BREAK' + magic];
+const EOF = ['EOF' + magic];
+const EPSILON = ['EPSILON' + magic];
+const CUT = ['CUT' + magic];
 //RET | CONTINUE | BREAK | any
 type option_t = any
 export class Iterable {
     static EOF = EOF;
-    static CONTINUE = CONTINUE;
-    static BREAK = BREAK;
+    static EPSILON = EPSILON;
+    static BREAK = CUT;
     static ICUT: Iterable = new class extends Iterable {
         getIter() {
             return new class extends Iterator {
                 _isDone = false;
                 next() {
-                    if (this._isDone) return BREAK;
+                    if (this._isDone) return CUT;
                     this._isDone = true;
-                    return CONTINUE;
+                    return EPSILON;
                 }
             }
         }
@@ -40,7 +40,7 @@ export class Iterable {
                 next() {
                     if (this._isDone) return EOF;
                     this._isDone = true;
-                    return CONTINUE;
+                    return EPSILON;
                 }
             }
         }
@@ -56,7 +56,7 @@ export class Iterable {
                             this._isDone = true;
                             let r = fun();
                             if (r) {
-                                return CONTINUE;
+                                return EPSILON;
                             }
                             return EOF;
                         }
@@ -76,7 +76,7 @@ export class Iterable {
                         if (!this._isDone) {
                             this._isDone = true;
                             fun();
-                            return CONTINUE;
+                            return EPSILON;
                         }
                         return EOF;
                     }
@@ -133,7 +133,7 @@ export class Iterable {
         }
     }
 
-    public hook(onBegin: () => void, onEnd: () => void, onItem: (item: any) => void) {
+    public hook(onBegin: () => void, onEnd: () => void, onItem?: (item: any) => void) {
         let that = this;
         return new class extends Iterable {
             getIter() {
@@ -330,9 +330,24 @@ export class Iterable {
         };
     }
 
+    static fromValue = (val: any) => new class extends Iterable {
+        getIter() {
+            return new class extends Iterator {
+                _isDone = false;
+                next() {
+                    if (this._isDone) return EOF;
+                    this._isDone = true;
+                    return val;
+                }
+            }
+        }
+    };
+
+    static NOTHING: string[] = ["NOTHING" + magic];
+    static INOTHING = Iterable.fromValue(Iterable.NOTHING);
     // I?
     maybe(): Iterable {
-        return Iterable.sum(this, Iterable.IEPSILON).transform(n => {
+        return Iterable.sum(this, Iterable.INOTHING).transform(n => {
             let val = n[1];
             return val;
         })
@@ -357,26 +372,34 @@ export class Iterable {
         });
     }
 
-    // I*
+    // I* = 
+    // many(n) = n many(n) | ep
     many(): Iterable {
-        let manyIter = new SUMIter();
-        let rightRecIter = new ProductIter();
-        rightRecIter.iterables.push(this);
-        rightRecIter.iterables.push(manyIter);
-        rightRecIter.iterables.push(Iterable.ICUT);
-        let rightRecIter1 = rightRecIter.transform(n => {
-            let val = n[0];
-            let otherVals = n[1];
-            return [val, ...otherVals];
-        });
-        manyIter.iterables.push(rightRecIter1);
-        manyIter.iterables.push(Iterable.IEPSILON);
-        return manyIter.transform(n => {
+        let manyIter = new SUMIter(); // many(n)
+        let manyIter1 = manyIter.transform(n => {
             let idx = n[0];
             let val = n[1];
-            if (idx === 0) return val;
+            if (idx === 0) {
+                return val;
+            }
             return [];
         });
+
+        let rightRecIter = new ProductIter(); // n many(n)
+        let rightRecIter1 = rightRecIter.transform(n => { // n many(n) 
+            let val = n[0];
+            let otherVals = n[1];
+            let r = [val, ...otherVals];
+            return r;
+        });
+
+        manyIter.iterables.push(rightRecIter1);
+        manyIter.iterables.push(Iterable.INOTHING);
+
+        rightRecIter.iterables.push(this);
+        rightRecIter.iterables.push(manyIter1);
+        //rightRecIter.iterables.push(Iterable.ICUT);
+        return manyIter1;
     }
 
     // I+
@@ -634,7 +657,7 @@ class SUMIter extends Iterable {
                                 item = cur.next();
                             }
                         case stValue:
-                            if (item === EOF || item === CONTINUE || item == BREAK) {
+                            if (item === EOF || item === EPSILON || item == CUT) {
                                 state = stIter;
                                 idx++;
                                 realIdx++;
@@ -701,14 +724,14 @@ class ProductIter extends Iterable {
                                 continue;
                             }
                         case stValue:
-                            if (item === BREAK) {
+                            if (item === CUT) {
                                 return EOF;
                             }
                             valStk.push(item);
                             idx++;
                             if (idx === len) {
                                 idx--;
-                                let r = valStk.filter(val => val !== CONTINUE);
+                                let r = valStk.filter(val => val !== EPSILON);
                                 valStk.pop();
                                 state = stNext;
                                 return r;
