@@ -10,6 +10,4 @@ class Recognizer extends Iterable {
             }
         }
     }
-
-
 }

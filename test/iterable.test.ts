@@ -1,4 +1,4 @@
-import { Iterable, Iterator } from '../src/iterable';
+import { Iterable, Iterator, Stepper } from '../src/iterable';
 
 let nubmerable = class extends Iterable {
     getIter() {
@@ -211,6 +211,19 @@ test('sum', () => {
     expect(it4.next()).toStrictEqual(Iterable.EOF);
     // expect(sum(it1, it2).getIter().toArray()).toStrictEqual([[0, 1], [0, 2], [1, 4], [1, 5]]);
 })
+
+test('sum1', () => {
+    let itab1 = Iterable.fromValue(1);
+    let itab2 = Iterable.fromValue(2);
+    let itab3 = Iterable.sum(itab1, itab2);
+    let it3 = itab3.getIter();
+    expect(it3.next()).toStrictEqual([0, 1]);
+    expect(it3.next()).toStrictEqual([1, 2]);
+    expect(it3.next()).toStrictEqual(Iterable.EOF);
+    let itab4 = Iterable.sum(itab3, itab3);
+    let it4 = itab4.getIter() as Stepper;
+    expect(it4.step()).toBeInstanceOf(Stepper);
+});
 
 test('product', () => {
     let itab1 = Iterable.fromArray([1, 2]).toIterable();

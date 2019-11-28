@@ -111,12 +111,15 @@ export class Iterable {
                 if (iter instanceof Stepper) {
                     return new class extends Stepper {
                         step() {
-                            let v = (iter as Stepper).step()
-                            if (v === EOF) return EOF;
-                            if (v instanceof Stepper) {
-                                return v;
+                            let item: any = null;
+                            if (this._async !== SYNC) {
+                                item = this._async;
+                                this._async = SYNC;
+                            } else {
+                                return iter;
                             }
-                            return trans(v);
+                            if (item === EOF) return EOF;
+                            return trans(item);
                         }
                     }
                 } else {
@@ -142,12 +145,15 @@ export class Iterable {
                 if (iter instanceof Stepper) {
                     return new class extends Stepper {
                         step() {
-                            let item = (iter as Stepper).step();
-                            if (item instanceof Stepper) {
-                                return item;
+                            let item: any = null;
+                            if (this._async !== SYNC) {
+                                item = this._async;
+                                this._async = SYNC;
+                            } else {
+                                return iter;
                             }
                             if (item === EOF) {
-                                if (onEnd) onEnd();
+                                if (onEnd) onItem(item);
                                 return EOF;
                             }
                             if (onItem) onItem(item);
@@ -590,7 +596,6 @@ export class Iterator {
 
 // stepper states
 const SYNC = Symbol('SYN');
-const ASYNC = Symbol('ASYNC');
 export class Stepper extends Iterator {
     _async: any = SYNC;
 
@@ -640,6 +645,11 @@ class SUMIter extends Iterable {
         return new class extends Stepper {
             step() {
                 let item: any = null;
+                if (this._async !== SYNC) {
+                    item = this._async;
+                    this._async = SYNC;
+                    state = stValue;
+                }
                 while (true) {
                     switch (state) {
                         case stIter:
@@ -648,11 +658,7 @@ class SUMIter extends Iterable {
                             cur = itab.getIter();
                         case stNext:
                             if (cur instanceof Stepper) {
-                                item = cur.step();
-                                if (item instanceof Stepper) {
-                                    state = stValue;
-                                    return item;
-                                }
+                                return cur;
                             } else {
                                 item = cur.next();
                             }
@@ -699,8 +705,8 @@ class ProductIter extends Iterable {
             step(): option_t | Iterator {
                 let item: any = null;
                 if (this._async !== SYNC) {
-                    item - this._async;
-                    this._async = ASYNC;
+                    item = this._async;
+                    this._async = SYNC;
                     state = stValue;
                 }
                 while (true) {
@@ -712,18 +718,15 @@ class ProductIter extends Iterable {
                             cur = itabs[idx].getIter();
                         case stNext:
                             if (cur instanceof Stepper) {
-                                item = cur.step();
-                                if (item instanceof Stepper) {
-                                    return item;
-                                }
+                                return cur;
                             } else {
                                 item = cur.next();
                             }
+                        case stValue:
                             if (item === EOF) {
                                 state = stBT;
                                 continue;
                             }
-                        case stValue:
                             if (item === CUT) {
                                 return EOF;
                             }
