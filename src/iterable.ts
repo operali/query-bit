@@ -417,7 +417,8 @@ export class Iterable {
         return r.transform(n => {
             let first = n[0];
             let others = n[1];
-            return [first, ...others];
+            others.unshift(first);
+            return others;
         })
     }
 
@@ -426,19 +427,21 @@ export class Iterable {
         let r = new ProductIter();
         r.iterables.push(this); // first
 
-        let followItem = new SUMIter();
+        let followItem = new ProductIter();
         followItem.iterables.push(separator);
         followItem.iterables.push(this);
-        followItem.transform(sItem => {
+        let followItem1 = followItem.transform(sItem => {
             return sItem[1];
         });
-        let follows = followItem.many();
+        let follows = followItem1.many();
         r.iterables.push(follows);
         return r.maybe().transform(item => {
-            if (item === Iterable.IEPSILON) {
+            if (item === Iterable.NOTHING) {
                 return [];
             }
-            return item;
+            let tail = item[1];
+            tail.unshift(item[0]);
+            return tail;
         });
     }
 }
@@ -680,8 +683,6 @@ class SUMIter extends Iterable {
         }
     }
 }
-
-
 
 class ProductIter extends Iterable {
     iterables: Iterable[] = []

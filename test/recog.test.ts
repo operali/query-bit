@@ -191,16 +191,42 @@ test('parseBase3', () => {
 
     let strTok = ' asdf asdf1 ';
     let strToks = '';
-    for (let i = 0; i < 25000; ++i) {
+    for (let i = 0; i < 5000; ++i) {
         strToks = strToks + strTok;
     }
     {
         let p = new ParserBase(strToks);
         let toks = p.tokens();
-        expect(toks.getIter().next().length).toBe(50000);
+        expect(toks.getIter().next().length).toBe(10000);
     }
 });
 
+test('more', () => {
+    {
+        let strToks = 'asdfasdfasdf';
+        let p = new ParserBase(strToks);
+        let strsIt = p.stringP('asdf').more().getIter();
+        expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
+        expect(strsIt.next()).toStrictEqual(['asdf', 'asdf']);
+        expect(strsIt.next()).toStrictEqual(['asdf']);
+        expect(strsIt.next()).toStrictEqual(Iterable.EOF);
+    }
+    {
+        let strToks = '';
+        let p = new ParserBase(strToks);
+        let strsIt = p.stringP('asdf').more().getIter();
+        expect(strsIt.next()).toStrictEqual(Iterable.EOF);
+    }
+});
+
+test('separatedBy', () => {
+    {
+        let strToks = 'asdf,asdf,asdf';
+        let p = new ParserBase(strToks);
+        let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
+        expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
+    }
+});
 
 // test('not', () => {
 //     {
