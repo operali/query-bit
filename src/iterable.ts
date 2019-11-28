@@ -444,6 +444,47 @@ export class Iterable {
             return tail;
         });
     }
+
+    cut(): Iterable {
+        let that = this;
+        return new class extends Iterable {
+            getIter() {
+                let iter = that.getIter();
+                let _isDone: boolean = false;
+                if (iter instanceof Stepper) {
+                    return new class extends Stepper {
+                        step() {
+                            if (_isDone) {
+                                return EOF;
+                            }
+                            let item: any = null;
+                            if (this._async !== SYNC) {
+                                item = this._async;
+                                this._async = SYNC;
+                            } else {
+                                return iter;
+                            }
+                            if (item === EOF) return EOF;
+                            _isDone = true;
+                            return item;
+                        }
+                    }
+                } else {
+                    return new class extends Iterator {
+                        next() {
+                            if (_isDone) {
+                                return EOF;
+                            }
+                            let item = iter.next();
+                            _isDone = true;
+                            return item;
+                        }
+                    }
+                }
+
+            }
+        }
+    }
 }
 
 export class Iterator {
@@ -602,7 +643,7 @@ export class Iterator {
 const SYNC = Symbol('SYN');
 export class Stepper extends Iterator {
     _async: any = SYNC;
-
+    static SYNC: symbol = SYNC;
     next() {
         let stepStk: Stepper[] = [];
         let curStepper: Stepper = this;

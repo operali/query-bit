@@ -331,9 +331,11 @@ test('action3', () => {
 
 test('cut', () => {
     {
-        let action = Iterable.fromAction(() => console.log('hello'));
+        let res = false;
+        let action = Iterable.fromAction(() => res = true);
         let from3 = Iterable.fromN(3).toIterable();
         expect(Iterable.product(from3, action, Iterable.ICUT).take(3).getIter().toArray()).toStrictEqual([[3]]);
+        expect(res).toBeTruthy();
     }
 })
 
@@ -393,8 +395,14 @@ test('transform2', () => {
         expect(it1.getIter().toArray()).toStrictEqual([0, 1, 2, 3]);
     }
     {
-        let it1 = Iterable.sum(Iterable.fromAction(() => console.log('start')), itab1, Iterable.fromAction(() => console.log('in mid')), itab2, Iterable.fromAction(() => console.log('end'))).transform((tab: number[]) => tab[1]);
+        let isStart = false;
+        let isMid = false;
+        let isStop = false;
+        let it1 = Iterable.sum(Iterable.fromAction(() => isStart = true), itab1, Iterable.fromAction(() => isMid = true), itab2, Iterable.fromAction(() => isStop = true)).transform((tab: number[]) => tab[1]);
         expect(it1.getIter().toArray()).toStrictEqual([0, 1, 2, 3]);
+        expect(isStart).toStrictEqual(true);
+        expect(isMid).toStrictEqual(true);
+        expect(isStop).toStrictEqual(true);
     }
 
     {
@@ -413,3 +421,21 @@ test('SUCC/FAIL', () => {
 })
 
 
+test('cut', () => {
+    {
+        let itab = Iterable.fromN(3).toIterable();
+        let itab1 = itab.cut();
+        let it = itab1.getIter();
+        expect(it.next()).toStrictEqual(3);
+        expect(it.next()).toStrictEqual(Iterable.EOF);
+    }
+
+    {
+        let itab = Iterable.fromArray([3, 4]).toIterable();
+        let itab1 = Iterable.fromArray([5, 6]).toIterable();
+        let itab2 = Iterable.product(itab, itab1).cut();
+        let it = itab2.getIter();
+        expect(it.next()).toStrictEqual([3, 5]);
+        expect(it.next()).toStrictEqual(Iterable.EOF);
+    }
+})
