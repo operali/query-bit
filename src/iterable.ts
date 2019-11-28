@@ -390,14 +390,15 @@ export class Iterable {
             }
             return [];
         });
-
         let rightRecIter = new ProductIter(); // n many(n)
-        let rightRecIter1 = rightRecIter.transform(n => { // n many(n) 
-            let val = n[0];
-            let otherVals = n[1];
-            let r = [val, ...otherVals];
-            return r;
-        });
+        let rightRecIter1 = rightRecIter
+            .transform(n => { // n many(n) 
+                let val = n[0];
+                let others = n[1];
+                others.unshift(val);
+                return others;
+                //return [val, ...others];
+            });
 
         manyIter.iterables.push(rightRecIter1);
         manyIter.iterables.push(Iterable.INOTHING);
