@@ -1,4 +1,4 @@
-import { Iterable } from '../src/iterable';
+import { Iterable, Iterator } from '../src/iterable';
 
 test('maybe', () => {
     {
@@ -62,21 +62,42 @@ class ParserBase {
         this._pos = 0;
     };
 
-    reset() {
-        this._pos = 0;
+    noSideEffect(it: Iterable) {
+        let start = 0;
+        return it.hook(() => start = this._pos, () => this._pos = start);
+    }
+
+    until(doIt: Iterable, cond: Iterable) {
+        let start = 0;
+        let undoneCond = cond.hook(() => {
+            start = this._pos;
+        }, () => {
+            this._pos = start;
+        })
+    }
+
+    oneChar() {
+        let start = 0;
+        return Iterable.fromPred(() => {
+            if (this._pos === this._src.length) {
+                return false;
+            }
+            this._pos++;
+            return true;
+        });
     }
 
     stringP(str: string): Iterable {
-        let ret = str;
         let start = 0;
         let len = str.length;
         return Iterable.fromFunction(() => {
             if (this._src.startsWith(str, start)) {
-                return ret;
+                this._pos = this._pos + len;
+                return str;
             } else {
                 return Iterable.EOF;
             }
-        }).hook(() => start = this._pos, () => this._pos = start, () => this._pos = start + len);
+        });
     };
 
     blanksP(): Iterable {
@@ -85,19 +106,22 @@ class ParserBase {
         return Iterable.fromFunction(() => {
             for (idx = start; idx < this._src.length; ++idx) {
                 if (!isBlank(this._src[idx])) {
+                    this._pos = idx;
                     break;
                 }
             }
             return Iterable.NOTHING;
-        }).hook(() => start = this._pos, () => this._pos = start, () => this._pos = idx);
+        });
     }
 
     noblanksP(): Iterable {
         let start = 0;
         let idx = 0;
+        let len = this._src.length;
         return Iterable.fromFunction(() => {
-            for (idx = start; idx < this._src.length; ++idx) {
+            for (idx = start; idx < len; ++idx) {
                 if (isBlank(this._src[idx])) {
+                    this._pos = idx;
                     break;
                 }
             }
@@ -105,18 +129,16 @@ class ParserBase {
             let r = this._src.substring(start, idx);
             return r;
 
-        }).hook(() => start = this._pos, () => this._pos = start, () => this._pos = idx);
+        });
     }
 
     tokens(): Iterable {
-        let start = 0;
         let blanksP = this.blanksP();
         let noblanksP = this.noblanksP();
-        return Iterable.product(blanksP, noblanksP).transform(n => {
+        return this.noSideEffect(Iterable.product(blanksP, noblanksP).transform(n => {
             let v = n[1];
             return v;
-        }).many()
-            .hook(() => start = this._pos, () => this._pos = start);
+        })).many();
     }
 }
 
@@ -130,24 +152,26 @@ test('parseBase1', () => {
     }
     {
         let p = new ParserBase('asdfasdf');
-        let iter = p.stringP('asd').getIter();
+        let iter = p.noSideEffect(p.stringP('asd')).getIter();
         expect(iter.next()).toStrictEqual('asd');
         expect(iter.next()).toStrictEqual(Iterable.EOF);
-        expect(p._pos).toStrictEqual(0);
+        expect(p._pos).toStrictEqual(3);
     }
     {
         let p = new ParserBase('');
-        expect(p.blanksP().getIter().next()).toStrictEqual(Iterable.NOTHING);
-        expect(p.blanksP().getIter().next()).toStrictEqual(Iterable.NOTHING);
-        expect(p.blanksP().getIter().next()).toStrictEqual(Iterable.NOTHING);
+        let blanks = p.blanksP();
+        expect(blanks.getIter().next()).toStrictEqual(Iterable.NOTHING);
+        expect(blanks.getIter().next()).toStrictEqual(Iterable.NOTHING);
+        expect(blanks.getIter().next()).toStrictEqual(Iterable.NOTHING);
         expect(p._pos).toStrictEqual(0);
     }
     {
         let p = new ParserBase(' ');
-        expect(p.blanksP().getIter().next()).toStrictEqual(Iterable.NOTHING);
+        let blanks = p.blanksP();
+        expect(blanks.getIter().next()).toStrictEqual(Iterable.NOTHING);
         expect(p._pos).toStrictEqual(1);
-        expect(p.blanksP().getIter().next()).toStrictEqual(Iterable.NOTHING);
-        expect(p.blanksP().getIter().next()).toStrictEqual(Iterable.NOTHING);
+        expect(blanks.getIter().next()).toStrictEqual(Iterable.NOTHING);
+        expect(blanks.getIter().next()).toStrictEqual(Iterable.NOTHING);
         expect(p._pos).toStrictEqual(1);
     }
 });
@@ -155,21 +179,24 @@ test('parseBase1', () => {
 test('parseBase2', () => {
     {
         let p = new ParserBase(' asdf asdf1');
-        expect(p.blanksP().getIter().next()).toStrictEqual(Iterable.NOTHING);
-        expect(p.noblanksP().getIter().next()).toStrictEqual('asdf');
-        expect(p.blanksP().getIter().next()).toStrictEqual(Iterable.NOTHING);
-        expect(p.noblanksP().getIter().next()).toStrictEqual('asdf1');
-        expect(p.blanksP().getIter().next()).toStrictEqual(Iterable.NOTHING);
-        expect(p.noblanksP().getIter().next()).toStrictEqual(Iterable.EOF);
+        let blanksP = p.blanksP();
+        let noblanksP = p.noblanksP();
+        expect(blanksP.getIter().next()).toStrictEqual(Iterable.NOTHING);
+        expect(noblanksP.getIter().next()).toStrictEqual('asdf');
+        expect(blanksP.getIter().next()).toStrictEqual(Iterable.NOTHING);
+        expect(noblanksP.getIter().next()).toStrictEqual('asdf1');
+        expect(blanksP.getIter().next()).toStrictEqual(Iterable.NOTHING);
+        expect(noblanksP.getIter().next()).toStrictEqual(Iterable.EOF);
     }
     {
         let p = new ParserBase(' asdf asdf1');
         let blanksP = p.blanksP();
         let noblanksP = p.noblanksP();
-        let itab = Iterable.product(blanksP, noblanksP).transform(r => r[1]);
+        let itab = p.noSideEffect(Iterable.product(blanksP, noblanksP).transform(r => r[1]));
         expect(itab.getIter().next()).toStrictEqual('asdf');
         expect(itab.getIter().next()).toStrictEqual('asdf1');
         expect(itab.getIter().next()).toStrictEqual(Iterable.EOF);
+        expect
     }
 });
 
@@ -226,6 +253,24 @@ test('separatedBy', () => {
         let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
         expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
     }
+    {
+        let strToks = 'asdf,asdf,asdf ,asdf';
+        let p = new ParserBase(strToks);
+        let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
+        expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
+    }
+    {
+        let strToks = 'asdf,asdf,asdf,';
+        let p = new ParserBase(strToks);
+        let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
+        expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
+    }
+    {
+        let strToks = 'asdf,asdf,asdf, asdf';
+        let p = new ParserBase(strToks);
+        let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
+        expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
+    }
 });
 
 test('not', () => {
@@ -244,12 +289,44 @@ test('not', () => {
         expect(r).toStrictEqual([Iterable.NOTHING]);
         expect(p._pos).toStrictEqual(0);
     }
-
     {
         let p = new ParserBase('    ');
         let itab = Iterable.product(p.blanksP().not(), Iterable.INOTHING);
         let r = itab.getIter().next();
         expect(r).toStrictEqual(Iterable.EOF);
         expect(p._pos).toStrictEqual(4);
+    }
+});
+
+test('until', () => {
+    {
+        let p = new ParserBase('    asdf');
+        p.oneChar().getIter().next();
+        expect(p._pos).toStrictEqual(1);
+    }
+    {
+        let p = new ParserBase('    asdf');
+        let itab = p.oneChar().till(p.stringP('asdf'));
+        itab.getIter().next();
+        expect(p._pos).toStrictEqual(8);
+    }
+
+    {
+        let p = new ParserBase('asdf');
+        let itab = p.oneChar().till(p.stringP('asdf'));
+        itab.getIter().next();
+        expect(p._pos).toStrictEqual(4);
+    }
+
+    {
+        let p = new ParserBase('asdfasdf  ');
+        let start = 0;
+        let itab = p.stringP('asdf').till(p.noblanksP().transform(
+            () => {
+
+            }
+        ));
+        itab.getIter().next();
+        expect(p._pos).toStrictEqual(9);
     }
 });

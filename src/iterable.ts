@@ -445,6 +445,12 @@ export class Iterable {
         });
     }
 
+    // (not(condP) p)*
+    till(condItab: Iterable): Iterable {
+        return Iterable.product(condItab.not(), this).transform(n => n[1]).many().cut();
+    }
+
+    // same as take(1), but stack safe
     cut(): Iterable {
         let that = this;
         return new class extends Iterable {
