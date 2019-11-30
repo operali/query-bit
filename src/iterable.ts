@@ -153,7 +153,7 @@ export class Iterable {
                                 return iter;
                             }
                             if (item === EOF) {
-                                if (onEnd) onItem(item);
+                                if (onEnd) onEnd();
                                 return EOF;
                             }
                             if (onItem) onItem(item);
