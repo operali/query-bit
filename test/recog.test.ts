@@ -1,5 +1,6 @@
 import { Iterable, Iterator } from '../src/iterable';
 
+
 test('maybe', () => {
     {
         let itab = Iterable.fromArray([0]).toIterable();
@@ -84,7 +85,7 @@ class ParserBase {
             }
             this._pos++;
             return true;
-        });
+        }).hook(() => start = this._pos, () => this._pos = start);
     }
 
     stringP(str: string): Iterable {
@@ -97,7 +98,7 @@ class ParserBase {
             } else {
                 return Iterable.EOF;
             }
-        });
+        }).hook(() => start = this._pos, () => this._pos = start);
     };
 
     blanksP(): Iterable {
@@ -116,6 +117,7 @@ class ParserBase {
     }
 
     noblanksP(): Iterable {
+        let start = 0;
         let idx = 0;
         let len = this._src.length;
         return Iterable.fromFunction(() => {
@@ -131,16 +133,16 @@ class ParserBase {
             let r = this._src.substring(start, idx);
             return r;
 
-        });
+        }).hook(() => start = this._pos, () => this._pos = start);;
     }
 
     tokens(): Iterable {
         let blanksP = this.blanksP();
         let noblanksP = this.noblanksP();
-        return this.noSideEffect(Iterable.product(blanksP, noblanksP).transform(n => {
+        return Iterable.product(blanksP, noblanksP).transform(n => {
             let v = n[1];
             return v;
-        })).many();
+        }).many();
     }
 }
 
@@ -236,7 +238,7 @@ test('more', () => {
     {
         let strToks = 'asdfasdfasdf';
         let p = new ParserBase(strToks);
-        let itemIt = p.noSideEffect(p.stringP('asdf'));
+        let itemIt = p.stringP('asdf');
         let itemsIt = itemIt.more().getIter();
 
         expect(itemsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
@@ -254,87 +256,86 @@ test('more', () => {
     }
 });
 
-// test('separatedBy', () => {
-//     {
-//         let strToks = 'asdf,asdf,asdf';
-//         let p = new ParserBase(strToks);
-//         let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
-//         expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
-//     }
-//     {
-//         let strToks = 'asdf,asdf,asdf ,asdf';
-//         let p = new ParserBase(strToks);
-//         let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
-//         expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
-//     }
-//     {
-//         let strToks = 'asdf,asdf,asdf,';
-//         let p = new ParserBase(strToks);
-//         let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
-//         expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
-//     }
-//     {
-//         let strToks = 'asdf,asdf,asdf, asdf';
-//         let p = new ParserBase(strToks);
-//         let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
-//         expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
-//     }
-// });
+test('separatedBy', () => {
+    {
+        let strToks = 'asdf,asdf,asdf';
+        let p = new ParserBase(strToks);
+        let itemIt = p.stringP('asdf');
+        let itemsIt = itemIt.more().getIter();
 
-// test('not', () => {
-//     {
-//         let p = new ParserBase('asdfasdf');
-//         let itab = p.noblanksP();
-//         let r = itab.getIter().next();
-//         expect(r).toStrictEqual('asdfasdf');
-//         expect(p._pos).toStrictEqual(8);
-//     }
+        let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
+        expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
+    }
+    {
+        let strToks = 'asdf,asdf,asdf ,asdf';
+        let p = new ParserBase(strToks);
+        let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
+        expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
+    }
+    {
+        let strToks = 'asdf,asdf,asdf,';
+        let p = new ParserBase(strToks);
+        let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
+        expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
+    }
+    {
+        let strToks = 'asdf,asdf,asdf, asdf';
+        let p = new ParserBase(strToks);
+        let strsIt = p.stringP('asdf').separatedBy(p.stringP(',')).getIter();
+        expect(strsIt.next()).toStrictEqual(['asdf', 'asdf', 'asdf']);
+    }
+});
 
-//     {
-//         let p = new ParserBase('  asdfasdf');
-//         let itab = Iterable.product(p.noblanksP().not(), Iterable.INOTHING);
-//         let r = itab.getIter().next();
-//         expect(r).toStrictEqual([Iterable.NOTHING]);
-//         expect(p._pos).toStrictEqual(0);
-//     }
-//     {
-//         let p = new ParserBase('    ');
-//         let itab = Iterable.product(p.blanksP().not(), Iterable.INOTHING);
-//         let r = itab.getIter().next();
-//         expect(r).toStrictEqual(Iterable.EOF);
-//         expect(p._pos).toStrictEqual(4);
-//     }
-// });
+test('not', () => {
+    {
+        let p = new ParserBase('asdfasdf');
+        let itab = p.noblanksP();
+        let r = itab.getIter().next();
+        expect(r).toStrictEqual('asdfasdf');
+        expect(p._pos).toStrictEqual(8);
+    }
 
-// test('until', () => {
-//     {
-//         let p = new ParserBase('    asdf');
-//         p.oneChar().getIter().next();
-//         expect(p._pos).toStrictEqual(1);
-//     }
-//     {
-//         let p = new ParserBase('    asdf');
-//         let itab = p.oneChar().till(p.stringP('asdf'));
-//         itab.getIter().next();
-//         expect(p._pos).toStrictEqual(8);
-//     }
+    {
+        let p = new ParserBase('  asdfasdf');
+        let itab = Iterable.product(p.noblanksP().not(), Iterable.INOTHING);
+        let r = itab.getIter().next();
+        expect(r).toStrictEqual([Iterable.NOTHING]);
+        expect(p._pos).toStrictEqual(0);
+    }
+    {
+        let p = new ParserBase('    ');
+        let itab = Iterable.product(p.blanksP().not(), Iterable.INOTHING);
+        let r = itab.getIter().next();
+        expect(r).toStrictEqual(Iterable.EOF);
+        expect(p._pos).toStrictEqual(4);
+    }
+});
 
-//     {
-//         let p = new ParserBase('asdf');
-//         let itab = p.oneChar().till(p.stringP('asdf'));
-//         itab.getIter().next();
-//         expect(p._pos).toStrictEqual(4);
-//     }
+test('until', () => {
+    {
+        let p = new ParserBase('    asdf');
+        p.oneChar().getIter().next();
+        expect(p._pos).toStrictEqual(1);
+    }
+    {
+        let p = new ParserBase('    asdf');
+        let itab = p.oneChar().till(p.stringP('asdf'));
+        itab.getIter().next();
+        expect(p._pos).toStrictEqual(8);
+    }
 
-//     {
-//         let p = new ParserBase('asdfasdf  ');
-//         let start = 0;
-//         let itab = p.stringP('asdf').till(p.noblanksP().transform(
-//             () => {
+    {
+        let p = new ParserBase('asdf');
+        let itab = p.oneChar().till(p.stringP('asdf'));
+        itab.getIter().next();
+        expect(p._pos).toStrictEqual(4);
+    }
 
-//             }
-//         ));
-//         itab.getIter().next();
-//         expect(p._pos).toStrictEqual(9);
-//     }
-// });
+    {
+        let p = new ParserBase('asdfasdf  ');
+        let start = 0;
+        let itab = p.stringP('asdf').till(p.stringP(' '));
+        itab.getIter().next();
+        expect(p._pos).toStrictEqual(9);
+    }
+});
